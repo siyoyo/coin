@@ -57,9 +57,6 @@ public class MerkleTree {
 		int powerOfTwo = 1;
 		while (Math.pow(2, powerOfTwo) < transactions.size()) powerOfTwo++;
 		
-		logger.info("number of transactions: " + transactions.size());
-		logger.info("number of leaves: " + Math.pow(2, powerOfTwo));
-		
 		return (int) Math.pow(2, powerOfTwo);
 	}
 	

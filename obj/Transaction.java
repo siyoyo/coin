@@ -1,6 +1,8 @@
 package obj;
 
 import java.security.GeneralSecurityException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.logging.Logger;
 
@@ -19,6 +21,14 @@ public class Transaction {
 	public Transaction() {
 		inputs = new ArrayList<Input>();
 		outputs = new ArrayList<Output>();
+	}
+	
+	public ArrayList<Input> inputs() {
+		return inputs;
+	}
+	
+	public ArrayList<Output> outputs() {
+		return outputs;
 	}
 	
 	/**
@@ -42,8 +52,10 @@ public class Transaction {
 	/**
 	 * Adds a new output to the transaction
 	 * @param output Specifies the amount and the recipient's public key
+	 * @throws InvalidKeySpecException 
+	 * @throws NoSuchAlgorithmException 
 	 */
-	public void addOutput(Output output) {
+	public void addOutput(Output output) throws NoSuchAlgorithmException, InvalidKeySpecException {
 		outputs.add(output);
 		logger.info("Added output[" + outputs.indexOf(output) + "] value " + output.amount() + " to " + output.recipientAddress());
 	}
@@ -51,8 +63,10 @@ public class Transaction {
 	/**
 	 * Removes an output from the transaction
 	 * @param output An output from this transaction
+	 * @throws InvalidKeySpecException 
+	 * @throws NoSuchAlgorithmException 
 	 */
-	public void removeOutput(Output output) {
+	public void removeOutput(Output output) throws NoSuchAlgorithmException, InvalidKeySpecException {
 		outputs.remove(output);
 		logger.info("Removed output value " + output.amount() + " to " + output.recipientAddress());
 	}
@@ -81,13 +95,22 @@ public class Transaction {
 		StringBuilder str = new StringBuilder();
 		
 		for (int i = 0; i < inputs.size(); i++) {
+			
 			Input in = inputs.get(i);
 			str.append("in" + i + "." + in.reference() + "." + in.output().amount() + " ");
+			
 		}
 		
 		for (int i = 0; i < outputs.size(); i++) {
+			
 			Output out = outputs.get(i);
-			str.append("out" + i + "." + out.recipientAddress() + "." + out.amount() + " ");
+			
+			try {
+				str.append("out" + i + "." + out.recipientAddress() + "." + out.amount() + " ");
+			} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+				e.printStackTrace();
+			}
+			
 		}
 		
 		return str.toString();

@@ -12,19 +12,17 @@ import util.SHA256;
  */
 public class BlockHeader {
 	
-	private String hashPreviousHeader;
+	private String previousPoW;
 	private String merkleRoot;
 	private int nonce;
 
-	public BlockHeader(String hashPreviousHeader, String merkleRoot) {
-		
-		this.hashPreviousHeader = hashPreviousHeader;
+	public BlockHeader(String previousPoW, String merkleRoot) {		
+		this.previousPoW = previousPoW;
 		this.merkleRoot = merkleRoot;
-		
 	}
 	
 	/**
-	 * Tries nonce values in inreasing order from zero until it obtains a hash value of the concatenation
+	 * Tries nonce values in increasing order from zero until it obtains a hash value of the concatenation
 	 * of the previous block header, the root of the Merkle tree containing the transactions, and the nonce,
 	 * which is smaller than the required proof-of-work difficulty.
 	 * @return String of 64 hex digits that represents the successful hash of the header
@@ -51,10 +49,22 @@ public class BlockHeader {
 		return result;
 	}
 	
+	public String previousPoW() {
+		return previousPoW;
+	}
+	
+	public int nonce() {
+		return nonce;
+	}
+	
+	public String merkleRoot() {
+		return merkleRoot;
+	}
+	
 	private String tryNonce(int nonce) throws NoSuchAlgorithmException {
 		
 		SHA256 sha256 = new SHA256();
-		String hash = sha256.hashString(hashPreviousHeader + merkleRoot + String.valueOf(nonce));
+		String hash = sha256.hashString(previousPoW + merkleRoot + String.valueOf(nonce));
 		return hash;
 	}
 

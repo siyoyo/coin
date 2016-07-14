@@ -2,7 +2,7 @@
 <blockchain>
 	<block>
 		<header>
-			<hashPreviousHeader>0013965daa8b69d8f56c3482f2d6894a56351e4a4c1ab38c135a189183e949a6</hashPreviousHeader>
+			<previousPoW>0013965daa8b69d8f56c3482f2d6894a56351e4a4c1ab38c135a189183e949a6</previousPoW>
 			<merkleRoot></merkleRoot>
 			<nonce></nonce>
 			<difficulty>00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff</difficulty>

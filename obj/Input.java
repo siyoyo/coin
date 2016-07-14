@@ -10,6 +10,12 @@ import java.util.ArrayList;
 
 import util.SHA256;
 
+/**
+ * <b> References </b>
+ * <ul>
+ * <li> <a href = "http://www.java2s.com/Tutorial/Java/0490__Security/RSASignatureGeneration.htm">Java Tutorial: RSA Signature Generation</a></li>
+ * </ul>
+ */
 public class Input {
 	
 	private String reference;

@@ -7,6 +7,8 @@ import java.util.ArrayList;
  */
 public class Block {
 	
+	public final static String BLOCKCHAIN = "dat/blockchain.xml";
+	
 	private BlockHeader header;
 	private String pow;
 	private ArrayList<Transaction> transactions;
