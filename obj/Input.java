@@ -18,11 +18,11 @@ import util.SHA256;
  */
 public class Input {
 	
-	private String reference;
+	private TransactionReference reference;
 	private Output output;
 	private PrivateKey privateKey;
 	
-	public Input(String reference, Output output, PrivateKey privateKey) {
+	public Input(TransactionReference reference, Output output, PrivateKey privateKey) {
 		this.reference = reference;
 		this.output = output;
 		this.privateKey = privateKey;
@@ -47,7 +47,7 @@ public class Input {
 		return sha256.bytesDecToHex(bytes);
 	}
 	
-	public String reference() {
+	public TransactionReference reference() {
 		return reference;
 	}
 	

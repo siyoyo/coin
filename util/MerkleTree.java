@@ -4,7 +4,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.logging.Logger;
+//import java.util.logging.Logger;
 
 import obj.Transaction;
 
@@ -19,7 +19,8 @@ import obj.Transaction;
  */
 public class MerkleTree {
 	
-	private Logger logger = Logger.getLogger(MerkleTree.class.getName());
+//	private Logger logger = Logger.getLogger(MerkleTree.class.getName());	// TODO
+	private ArrayList<Transaction> orderedTransactions;
 	
 	/**
 	 * TODO
@@ -29,12 +30,17 @@ public class MerkleTree {
 	 */
 	public String getRoot(ArrayList<Transaction> transactions) throws NoSuchAlgorithmException {
 		
-		orderTransactions(transactions);				// Enforce ordering on leaves
+		orderTransactions(transactions);
+		orderedTransactions = transactions;
 		int numberOfLeaves = countLeaves(transactions);	// Number of leaves must be a power of 2
 		String root = buildTree(transactions, numberOfLeaves);
 		return root;
 	}
 
+	public ArrayList<Transaction> orderedTransactions() {
+		return orderedTransactions;
+	}
+	
 	/*
 	 * Private methods
 	 */
