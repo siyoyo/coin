@@ -2,15 +2,15 @@ package obj;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.GeneralSecurityException;
 import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 //import java.util.logging.Logger;
 
+import obj.Transaction.TransactionInputsLessThanOutputsException;
 import util.MerkleTree;
+import util.RSA512;
+import util.Signature.ValidationFailureException;
 
 /**
  * <b>References</b>
@@ -21,7 +21,6 @@ import util.MerkleTree;
  */
 public class NetworkNode {
 	
-	public final static String ALGORITHM = "RSA";
 	public final static String BLOCKCHAIN = "dat/blockchain.xml";
 	public final static String UTXO = "dat/utxo.xml";
 	public final static int REWARD = 50;
@@ -46,12 +45,12 @@ public class NetworkNode {
 		updateBlockchain();
 	}
 	
-	public void mine() throws NoSuchAlgorithmException, URISyntaxException, InvalidKeySpecException {
-		
-		Block newBlock = makeBlock();
+	public void mine() throws URISyntaxException, TransactionInputsLessThanOutputsException, GeneralSecurityException, ValidationFailureException {
 		
 		URI domain = NetworkNode.class.getClassLoader().getResource(BLOCKCHAIN).toURI();
 		BlockExplorer explorer = new BlockExplorer(domain);
+		
+		Block newBlock = makeBlock(explorer);
 		explorer.extendBlockchain(newBlock, difficulty);
 		
 	}
@@ -67,38 +66,27 @@ public class NetworkNode {
 		
 	}
 	
-//	private void updateMempool(Transaction newTransaction) {
-//		mempool.add(newTransaction);
-//	}
-	
-	private KeyPair generateKeyPair() throws NoSuchAlgorithmException {
-		
-		KeyPairGenerator generator = KeyPairGenerator.getInstance(ALGORITHM);
-		generator.initialize(512, new SecureRandom());
-		
-		return generator.generateKeyPair();	
+	public void updateMempool(Transaction newTransaction) {
+		mempool.add(newTransaction);
 	}
 	
-	private Block makeBlock() throws NoSuchAlgorithmException, InvalidKeySpecException, URISyntaxException {
+	private Block makeBlock(BlockExplorer explorer) throws URISyntaxException, TransactionInputsLessThanOutputsException, GeneralSecurityException, ValidationFailureException {
 		
 		ArrayList<Transaction> transactions = cloneMempool();
 		
 		Transaction mint = new Transaction();
 		
-		KeyPair newKeyPair = generateKeyPair();
+		RSA512 rsa512 = new RSA512();
+		KeyPair newKeyPair = rsa512.generateKeyPair();
 		wallet.save(newKeyPair, REWARD);
 		
 		Output gold = new Output(newKeyPair.getPublic(), REWARD);
 		
 		mint.addOutput(gold);
-		transactions.add(mint);
 		
 		MerkleTree tree = new MerkleTree();
-		String root = tree.getRoot(transactions);	// TODO mint transaction should be either first or last
+		String root = tree.getRoot(explorer, mint, transactions);
 		ArrayList<Transaction> orderedTransactions = tree.orderedTransactions();
-		
-		URI domain = NetworkNode.class.getClassLoader().getResource(BLOCKCHAIN).toURI();
-		BlockExplorer explorer = new BlockExplorer(domain);
 		
 		BlockHeader newHeader = new BlockHeader(explorer.getLastBlockHeader(), root); 
 		String pow = newHeader.hash(difficulty);

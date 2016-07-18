@@ -3,10 +3,10 @@ package obj;
 public class TransactionReference {
 	
 	private String pow;
-	private int transactionID;
-	private int outputID;
+	private String transactionID;
+	private String outputID;
 
-	public TransactionReference(String pow, int transactionID, int outputID) {
+	public TransactionReference(String pow, String transactionID, String outputID) {
 		this.pow = pow;
 		this.transactionID = transactionID;
 		this.outputID = outputID;
@@ -16,11 +16,11 @@ public class TransactionReference {
 		return pow;
 	}
 	
-	public int transactionID() {
+	public String transactionID() {
 		return transactionID;
 	}
 	
-	public int outputID() {
+	public String outputID() {
 		return outputID;
 	}
 	

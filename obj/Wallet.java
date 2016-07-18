@@ -8,6 +8,7 @@ import java.util.Map.Entry;
 
 public class Wallet {
 	
+	public final static String WALLET = "dat/wallet.xml"; 
 	private Hashtable<KeyPair, Integer> keyPairs;
 	
 	public Wallet() {

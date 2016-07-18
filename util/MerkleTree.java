@@ -1,12 +1,16 @@
 package util;
 
+import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 //import java.util.logging.Logger;
 
+import obj.BlockExplorer;
 import obj.Transaction;
+import obj.Transaction.TransactionInputsLessThanOutputsException;
+import util.Signature.ValidationFailureException;
 
 /**
  * A utility which uses SHA-256 to generate the root of a Merkle tree given a list of transactions. <br>
@@ -26,14 +30,26 @@ public class MerkleTree {
 	 * TODO
 	 * @param transactions
 	 * @return
-	 * @throws NoSuchAlgorithmException
+	 * @throws GeneralSecurityException 
+	 * @throws TransactionInputsLessThanOutputsException 
+	 * @throws ValidationFailureException 
 	 */
-	public String getRoot(ArrayList<Transaction> transactions) throws NoSuchAlgorithmException {
+	public String getRoot(BlockExplorer explorer, Transaction mint, ArrayList<Transaction> transactions) throws TransactionInputsLessThanOutputsException, GeneralSecurityException, ValidationFailureException {
+		
+		String root = null;
 		
 		orderTransactions(transactions);
 		orderedTransactions = transactions;
-		int numberOfLeaves = countLeaves(transactions);	// Number of leaves must be a power of 2
-		String root = buildTree(transactions, numberOfLeaves);
+		
+		Signature signature = new Signature();
+		boolean passedValidation = signature.validate(explorer, orderedTransactions);
+		
+		if (passedValidation) {
+			orderedTransactions.add(0, mint);				// Mint transaction is the first transaction
+			int numberOfLeaves = countLeaves(transactions);	// Number of leaves must be a power of 2
+			root = buildTree(transactions, numberOfLeaves);
+		}
+		
 		return root;
 	}
 
@@ -106,4 +122,5 @@ public class MerkleTree {
 		
 		return results;
 	}
+	
 }

@@ -10,6 +10,7 @@ import org.junit.Test;
 import org.w3c.dom.Node;
 
 import obj.BlockExplorer;
+import obj.TransactionReference;
 
 /**
  * <b>References</b>
@@ -23,12 +24,14 @@ public class BlockExplorerTest {
 	private String file = "dat/blockchain.xml";
 	private URI domain;
 	private BlockExplorer explorer;
+	private TransactionReference reference;
 	
 	@Before
 	public void initialise() {
 		try {
 			domain = BlockExplorerTest.class.getClassLoader().getResource(file).toURI();
 			explorer = new BlockExplorer(domain);
+			reference = new TransactionReference("00beca72451ca0eb365c622f8a35997eb56773c9b05ad91a9ccf24ecec33e384", "1", "1");
 		} catch (URISyntaxException e) {
 			e.printStackTrace();
 		}
@@ -40,9 +43,9 @@ public class BlockExplorerTest {
 	}
 	
 	@Test
-	public void testGetBlockHeight() {
+	public void testGetBlockByHeight() {
 		
-		Node node = explorer.getBlock(1);
+		Node node = explorer.getBlockByHeight("1");
 		
 		node = node.getFirstChild().getNextSibling();	// header node
 		node = node.getFirstChild().getNextSibling();	// previousPoW node
@@ -54,9 +57,9 @@ public class BlockExplorerTest {
 	}
 	
 	@Test
-	public void testGetBlockPoW() {
+	public void testGetBlock() {
 			
-		Node node = explorer.getBlock("000337a5cfd5c7db77a49eeaf39c544c72c828ff79a35828b3c58ed6a8d09465");
+		Node node = explorer.getBlockByHash("000337a5cfd5c7db77a49eeaf39c544c72c828ff79a35828b3c58ed6a8d09465");
 		
 		node = node.getFirstChild().getNextSibling();	// header node
 		node = node.getFirstChild().getNextSibling();	// previousPoW node
@@ -69,12 +72,12 @@ public class BlockExplorerTest {
 	
 	@Test
 	public void testRecipientAddress() {
-		assertEquals("9ec35a14972974a70bcf7e5dd602f90b9047dcd63ed6b3815b1531fda053f8ede56efe308d1cb71590c1599353038190174f1d3e0c94cc8e8634c9f24df36953", explorer.recipientAddress("00beca72451ca0eb365c622f8a35997eb56773c9b05ad91a9ccf24ecec33e384", 1, 1));
+		assertEquals("9ec35a14972974a70bcf7e5dd602f90b9047dcd63ed6b3815b1531fda053f8ede56efe308d1cb71590c1599353038190174f1d3e0c94cc8e8634c9f24df36953", explorer.recipientAddress(reference));
 	}
 	
 	@Test
 	public void testTransactionAmount() {
-		assertEquals("50", explorer.transactionAmount("00beca72451ca0eb365c622f8a35997eb56773c9b05ad91a9ccf24ecec33e384", 1, 1));
+		assertEquals("50", explorer.transactionAmount(reference));
 	}
 
 }

@@ -56,11 +56,12 @@ public class BlockExplorer {
 	}
 	
 	public String getLastBlockHeader() {
-		Node block = getBlock(height);
+		String sHeight = String.valueOf(height);
+		Node block = getBlockByHeight(sHeight);
 		return getHeader(block);
 	}
 	
-	public Node getBlock(int requestedHeight) {
+	public Node getBlockByHeight(String requestedHeight) {
 		
 		for (int i = 0; i < blocks.getLength(); i++) {
 			
@@ -68,13 +69,13 @@ public class BlockExplorer {
 			Element element = (Element) block;
 			String attribute = element.getAttributes().getNamedItem("height").getTextContent();	// Get height value
 			
-			if (attribute.compareTo(String.valueOf(requestedHeight)) == 0) return block;
+			if (attribute.compareTo(requestedHeight) == 0) return block;
 		}
 		
 		return null;
 	}
 	
-	public Node getBlock(String pow) {
+	public Node getBlockByHash(String pow) {
 
 		for (int i = 0; i < blocks.getLength(); i++) {
 			
@@ -89,10 +90,10 @@ public class BlockExplorer {
 		return null;
 	}
 	
-	public String recipientAddress(String pow, int txID, int outputID) {
+	public String recipientAddress(TransactionReference reference) {
 		
 		String address = null;
-		Element node = (Element) getBlock(pow);
+		Element node = (Element) getBlockByHash(reference.pow());
 		NodeList transactions = node.getElementsByTagName("transaction");
 		
 		for (int i = 0; i < transactions.getLength(); i++) {
@@ -104,8 +105,8 @@ public class BlockExplorer {
 				
 				Element output = (Element) outputs.item(j);
 				
-				if (transaction.getAttribute("txID").compareTo(String.valueOf(txID)) == 0 &
-						output.getAttribute("outputID").compareTo(String.valueOf(outputID)) == 0) {
+				if (transaction.getAttribute("txID").compareTo(reference.transactionID()) == 0 &
+						output.getAttribute("outputID").compareTo(reference.outputID()) == 0) {
 					Node n = output.getFirstChild().getNextSibling();	// address node
 					address = n.getTextContent();
 				}			
@@ -115,10 +116,10 @@ public class BlockExplorer {
 		return address;
 	}
 	
-	public String transactionAmount(String pow, int txID, int outputID) {
+	public String transactionAmount(TransactionReference reference) {
 		
 		String amount = null;
-		Element node = (Element) getBlock(pow);
+		Element node = (Element) getBlockByHash(reference.pow());
 		NodeList transactions = node.getElementsByTagName("transaction");
 		
 		for (int i = 0; i < transactions.getLength(); i++) {
@@ -130,8 +131,8 @@ public class BlockExplorer {
 				
 				Element output = (Element) outputs.item(j);
 				
-				if (transaction.getAttribute("txID").compareTo(String.valueOf(txID)) == 0 &
-						output.getAttribute("outputID").compareTo(String.valueOf(outputID)) == 0) {
+				if (transaction.getAttribute("txID").compareTo(reference.transactionID()) == 0 &
+						output.getAttribute("outputID").compareTo(reference.outputID()) == 0) {
 					Node n = output.getFirstChild().getNextSibling();	// address node
 					n = n.getNextSibling().getNextSibling();			// amount node
 					amount = n.getTextContent();
@@ -192,11 +193,11 @@ public class BlockExplorer {
 			
 			for (int j = 0; j < inputs.size(); j++) {
 				
-				Output output = inputs.get(j).output();
+				TransactionReference reference = inputs.get(j).reference();
 				
 				Element greatgrandchild = doc.createElement("input");
 				greatgrandchild.setAttribute("inputID", String.valueOf(j + 1));
-				greatgrandchild.setTextContent(output.recipientAddress());
+				greatgrandchild.setTextContent(this.recipientAddress(reference));
 				grandchild.appendChild(greatgrandchild);
 				
 			}

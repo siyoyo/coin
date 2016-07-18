@@ -1,5 +1,7 @@
 package obj;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
@@ -12,9 +14,10 @@ import java.util.logging.Logger;
  */
 public class Transaction {
 	
+	private final static String BLOCKCHAIN = "dat/blockchain.xml";
 	private ArrayList<Input> inputs;
 	private ArrayList<Output> outputs;
-	private ArrayList<String> signatures;
+	private byte[][] signatures;
 	
 	private Logger logger = Logger.getLogger(Transaction.class.getName());
 	
@@ -31,13 +34,17 @@ public class Transaction {
 		return outputs;
 	}
 	
+	public byte[][] signatures() {
+		return signatures;
+	}
+	
 	/**
 	 * Adds a new input to the transaction
 	 * @param input References an unspent output from a previous transaction
 	 */
 	public void addInput(Input input) {
 		inputs.add(input);
-		logger.info("Added input[" + inputs.indexOf(input) + "] value " + input.output().amount() + " from " + input.reference());
+//		logger.info("Added input[" + inputs.indexOf(input) + "] value " + input.output().amount() + " from " + input.reference());
 	}
 	
 	/**
@@ -46,7 +53,7 @@ public class Transaction {
 	 */
 	public void removeInput(Input input) {
 		inputs.remove(input);
-		logger.info("Removed input value " + input.output().amount() + " from " + input.reference());
+//		logger.info("Removed input value " + input.output().amount() + " from " + input.reference());
 	}
 	
 	/**
@@ -77,44 +84,64 @@ public class Transaction {
 	 * as the amount by which the value of inputs exceed the value of outputs.  
 	 * @throws TransactionInputsLessThanOutputsException Sum of inputs values cannot be less than sum of output values
 	 * @throws GeneralSecurityException 
+	 * @throws URISyntaxException 
 	 */
-	public void finalise() throws TransactionInputsLessThanOutputsException, GeneralSecurityException {
+	public void finalise() throws TransactionInputsLessThanOutputsException, GeneralSecurityException, URISyntaxException {
 		
 		if (inputsLargerThanOutputs()) {
 			logger.info("Transaction fee: " + (sumInputs() - sumOutputs()));
 			logger.info(this.toString());
-			this.sign();
+			
+			signatures = new byte[inputs.size()][];
+			byte[] outputsInBytes = getOutputsInBytes();
+			
+			for (int i = 0; i < inputs.size(); i++) {
+				Input input = inputs.get(i);
+				signatures[i] = input.sign(outputsInBytes);
+			}
+			
 		} else {
 			throw new TransactionInputsLessThanOutputsException("Transaction failed to finalise");
 		}
 		
 	}
 	
-	public String toString() {
+//	public String toString() {
+//		
+//		StringBuilder str = new StringBuilder();
+//		
+//		for (int i = 0; i < inputs.size(); i++) {
+//			
+//			Input in = inputs.get(i);
+//			str.append("in" + i + "." + in.reference() + "." + in.output().amount() + " ");
+//			
+//		}
+//		
+//		for (int i = 0; i < outputs.size(); i++) {
+//			
+//			Output out = outputs.get(i);
+//			
+//			try {
+//				str.append("out" + i + "." + out.recipientAddress() + "." + out.amount() + " ");
+//			} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+//				e.printStackTrace();
+//			}
+//			
+//		}
+//		
+//		return str.toString();
+//		
+//	}
+	
+	public byte[] getOutputsInBytes() {
 		
 		StringBuilder str = new StringBuilder();
-		
-		for (int i = 0; i < inputs.size(); i++) {
-			
-			Input in = inputs.get(i);
-			str.append("in" + i + "." + in.reference() + "." + in.output().amount() + " ");
-			
-		}
-		
 		for (int i = 0; i < outputs.size(); i++) {
-			
-			Output out = outputs.get(i);
-			
-			try {
-				str.append("out" + i + "." + out.recipientAddress() + "." + out.amount() + " ");
-			} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-				e.printStackTrace();
-			}
-			
+			str.append(outputs.get(i).toString());
+			str.append("/");
 		}
 		
-		return str.toString();
-		
+		return str.toString().getBytes();
 	}
 
 	@SuppressWarnings("serial") // TODO Serialize
@@ -129,18 +156,25 @@ public class Transaction {
 		}
 		
 	}
-	
+		
 	/*
 	 * Private methods
 	 */
-	private boolean inputsLargerThanOutputs() {
+	private boolean inputsLargerThanOutputs() throws URISyntaxException {
 		return (sumInputs() >= sumOutputs()) ? true : false;
 	}
 	
-	private int sumInputs() {
+	private int sumInputs() throws URISyntaxException {
+		
+		URI domain = Transaction.class.getClassLoader().getResource(BLOCKCHAIN).toURI();
+		BlockExplorer explorer = new BlockExplorer(domain);
 		
 		int sumInputs = 0;
-		for (int i = 0; i < inputs.size(); i++) sumInputs += inputs.get(i).output().amount();
+		
+		for (int i = 0; i < inputs.size(); i++) {
+			TransactionReference reference = inputs.get(i).reference();
+			sumInputs += Integer.parseInt(explorer.transactionAmount(reference));
+		}
 		return sumInputs;
 	}
 	
@@ -149,17 +183,6 @@ public class Transaction {
 		int sumOutputs = 0;
 		for (int i = 0; i < outputs.size(); i++) sumOutputs += outputs.get(i).amount();
 		return sumOutputs;
-	}
-	
-	private void sign() throws GeneralSecurityException {
-		
-		signatures = new ArrayList<String>();
-		
-		for (int i = 0; i < inputs.size(); i++) {
-			String signature = inputs.get(i).sign(outputs);
-			signatures.add(signature);
-		}
-		
 	}
 	
 }
