@@ -10,7 +10,6 @@ import java.util.Comparator;
 import obj.BlockExplorer;
 import obj.Transaction;
 import obj.Transaction.TransactionInputsLessThanOutputsException;
-import util.Signature.ValidationFailureException;
 
 /**
  * A utility which uses SHA-256 to generate the root of a Merkle tree given a list of transactions. <br>
@@ -34,21 +33,15 @@ public class MerkleTree {
 	 * @throws TransactionInputsLessThanOutputsException 
 	 * @throws ValidationFailureException 
 	 */
-	public String getRoot(BlockExplorer explorer, Transaction mint, ArrayList<Transaction> transactions) throws TransactionInputsLessThanOutputsException, GeneralSecurityException, ValidationFailureException {
+	public String getRoot(BlockExplorer explorer, Transaction mint, ArrayList<Transaction> transactions) throws TransactionInputsLessThanOutputsException, GeneralSecurityException {
 		
 		String root = null;
 		
 		orderTransactions(transactions);
-		orderedTransactions = transactions;
-		
-		Signature signature = new Signature();
-		boolean passedValidation = signature.validate(explorer, orderedTransactions);
-		
-		if (passedValidation) {
-			orderedTransactions.add(0, mint);				// Mint transaction is the first transaction
-			int numberOfLeaves = countLeaves(transactions);	// Number of leaves must be a power of 2
-			root = buildTree(transactions, numberOfLeaves);
-		}
+		orderedTransactions = transactions;	
+		orderedTransactions.add(0, mint);				// Mint transaction is the first transaction
+		int numberOfLeaves = countLeaves(transactions);	// Number of leaves must be a power of 2
+		root = buildTree(transactions, numberOfLeaves);
 		
 		return root;
 	}

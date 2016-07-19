@@ -13,10 +13,11 @@ import java.security.NoSuchAlgorithmException;
  */
 public class SHA256 {
 	
+	private final static String HASH_ALGORITHM = "SHA-256";
 	private MessageDigest md;
 	
 	public SHA256() throws NoSuchAlgorithmException {
-		md = MessageDigest.getInstance("SHA-256");
+		md = MessageDigest.getInstance(HASH_ALGORITHM);
 	}
 	
 	/**
@@ -40,26 +41,7 @@ public class SHA256 {
 	 */
 	public String hashBytes(byte[] bytes) {
 		byte[] bytesDecimal = md.digest(bytes);
-		return bytesDecToHex(bytesDecimal);	
-	}
-	
-	/**
-	 * Converts a byte array in base 10 to base 16.
-	 * @param bytesDecimal Byte array in base 10
-	 * @return Byte array in base 16
-	 */
-	public String bytesDecToHex(byte[] bytesDecimal) {
-		
-		StringBuffer str = new StringBuffer();
-		
-		for (int i = 0; i < bytesDecimal.length; i++) {
-			
-			String hex = Integer.toHexString(0xff & bytesDecimal[i]);
-			if (hex.length() == 1) str.append('0');	// ensures that one byte always has two hex digits
-			str.append(hex);
-		}
-		
-		return str.toString();
+		return BaseConverter.bytesDecToHex(bytesDecimal);	
 	}
 
 }

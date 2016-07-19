@@ -2,12 +2,19 @@ package test;
 
 import static org.junit.Assert.*;
 
-import java.net.URI;
+import java.io.IOException;
 import java.net.URISyntaxException;
+import java.security.NoSuchAlgorithmException;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.InvalidKeySpecException;
+
+import javax.xml.parsers.ParserConfigurationException;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.w3c.dom.DOMException;
 import org.w3c.dom.Node;
+import org.xml.sax.SAXException;
 
 import obj.BlockExplorer;
 import obj.TransactionReference;
@@ -22,17 +29,21 @@ import obj.TransactionReference;
 public class BlockExplorerTest {
 
 	private String file = "dat/blockchain.xml";
-	private URI domain;
 	private BlockExplorer explorer;
 	private TransactionReference reference;
 	
 	@Before
 	public void initialise() {
 		try {
-			domain = BlockExplorerTest.class.getClassLoader().getResource(file).toURI();
-			explorer = new BlockExplorer(domain);
+			explorer = new BlockExplorer(file);
 			reference = new TransactionReference("00beca72451ca0eb365c622f8a35997eb56773c9b05ad91a9ccf24ecec33e384", "1", "1");
 		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (ParserConfigurationException e) {
+			e.printStackTrace();
+		} catch (SAXException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
@@ -72,7 +83,23 @@ public class BlockExplorerTest {
 	
 	@Test
 	public void testRecipientAddress() {
-		assertEquals("9ec35a14972974a70bcf7e5dd602f90b9047dcd63ed6b3815b1531fda053f8ede56efe308d1cb71590c1599353038190174f1d3e0c94cc8e8634c9f24df36953", explorer.recipientAddress(reference));
+		
+		String address = null;
+		
+		try {
+			
+			RSAPublicKey publicKey = explorer.recipientPublicKey(reference);
+			address = publicKey.getModulus().toString(16);
+			
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		} catch (InvalidKeySpecException e) {
+			e.printStackTrace();
+		} catch (DOMException e) {
+			e.printStackTrace();
+		}
+		
+		assertEquals("9ec35a14972974a70bcf7e5dd602f90b9047dcd63ed6b3815b1531fda053f8ede56efe308d1cb71590c1599353038190174f1d3e0c94cc8e8634c9f24df36953", address);
 	}
 	
 	@Test

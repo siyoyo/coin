@@ -2,8 +2,9 @@ package obj;
 
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
 import java.security.SignatureException;
+import java.security.interfaces.RSAPrivateCrtKey;
+
 import util.Signature;
 
 /**
@@ -15,11 +16,11 @@ import util.Signature;
 public class Input {
 	
 	private TransactionReference reference;
-	private PrivateKey privateKey;
+	private RSAPrivateCrtKey senderPrivateKey;
 	
-	public Input(TransactionReference reference, PrivateKey privateKey) {
+	public Input(TransactionReference reference, RSAPrivateCrtKey privateKey) {
 		this.reference = reference;
-		this.privateKey = privateKey;
+		this.senderPrivateKey = privateKey;
 	}
 	
 	public TransactionReference reference() {
@@ -29,7 +30,7 @@ public class Input {
 	public byte[] sign(byte[] outputsInBytes) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
 		
 		Signature signature = new Signature();
-		return signature.sign(outputsInBytes, privateKey);
+		return signature.sign(outputsInBytes, senderPrivateKey);
 		
 	}
 	

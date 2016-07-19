@@ -1,10 +1,6 @@
 package obj;
 
-import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.RSAPublicKeySpec;
+import java.security.interfaces.RSAPublicKey;
 
 /**
  * <b>References</b>
@@ -14,29 +10,23 @@ import java.security.spec.RSAPublicKeySpec;
  */
 public class Output {
 	
-	public final static String ALGORITHM = "RSA";
-	private PublicKey recipientAddress;
-	private int amount;
+	private RSAPublicKey recipientPublicKey;
+	private String amount;
 	
-	public Output(PublicKey recipientAddress, int amount) {
-		this.recipientAddress = recipientAddress;
+	public Output(RSAPublicKey recipientAddress, String amount) {
+		this.recipientPublicKey = recipientAddress;
 		this.amount = amount;
 	}
 	
 	public String toString() {
-		return Integer.toString(amount) + "." + recipientAddress;	// TODO
+		return amount + " to " + recipientPublicKey.getModulus().toString(16);
 	}
 	
-	public String recipientAddress() throws NoSuchAlgorithmException, InvalidKeySpecException {
-		
-		KeyFactory factory = KeyFactory.getInstance(ALGORITHM);
-		RSAPublicKeySpec publicKey = factory.getKeySpec(recipientAddress, RSAPublicKeySpec.class);
-		String address = new String (publicKey.getModulus().toString(16));
-		return address;
-		
+	public RSAPublicKey recipientAddress() {
+		return recipientPublicKey;
 	}
 	
-	public int amount() {
+	public String amount() {
 		return amount;
 	}
 

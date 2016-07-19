@@ -1,30 +1,24 @@
 package obj;
 
-import java.io.File;
 import java.io.IOException;
-import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.NoSuchAlgorithmException;
+import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
-
 import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
-import org.xml.sax.SAXParseException;
+
+import util.BaseConverter;
+import util.RSA512;
+import util.XMLio;
 
 /**
  * The BlockExplorer class has superpowers like the ability to time travel
@@ -38,14 +32,14 @@ import org.xml.sax.SAXParseException;
  */
 public class BlockExplorer {
 	
-	private URI domain;
+	private String filename;
 	private Document doc;
 	private NodeList blocks;
 	private int height;
 	
-	public BlockExplorer(URI domain) {
-		this.domain = domain;
-		doc = parse(this.domain);
+	public BlockExplorer(String filename) throws ParserConfigurationException, SAXException, IOException, URISyntaxException {
+		this.filename = filename;
+		doc = XMLio.parse(filename);
 		doc.getDocumentElement().normalize();
 		blocks = doc.getElementsByTagName("block");
 		height = blocks.getLength();
@@ -90,9 +84,8 @@ public class BlockExplorer {
 		return null;
 	}
 	
-	public String recipientAddress(TransactionReference reference) {
+	public RSAPublicKey recipientPublicKey(TransactionReference reference) throws NoSuchAlgorithmException, InvalidKeySpecException, DOMException {
 		
-		String address = null;
 		Element node = (Element) getBlockByHash(reference.pow());
 		NodeList transactions = node.getElementsByTagName("transaction");
 		
@@ -107,13 +100,14 @@ public class BlockExplorer {
 				
 				if (transaction.getAttribute("txID").compareTo(reference.transactionID()) == 0 &
 						output.getAttribute("outputID").compareTo(reference.outputID()) == 0) {
+					
 					Node n = output.getFirstChild().getNextSibling();	// address node
-					address = n.getTextContent();
+					return RSA512.decodePublicKey(n.getTextContent());
 				}			
 			}
 		}
 		
-		return address;
+		return null;
 	}
 	
 	public String transactionAmount(TransactionReference reference) {
@@ -143,9 +137,8 @@ public class BlockExplorer {
 		return amount;
 	}
 	
-	public void extendBlockchain(Block newBlock, String difficulty) throws DOMException, NoSuchAlgorithmException, InvalidKeySpecException {
+	public void extendBlockchain(Block newBlock, String difficulty) throws DOMException, NoSuchAlgorithmException, InvalidKeySpecException, ParserConfigurationException, SAXException, IOException, TransformerException, URISyntaxException  {
 		
-		doc = parse(domain);
 		doc.getDocumentElement().normalize();
 		
 		Element block = doc.createElement("block");
@@ -194,10 +187,12 @@ public class BlockExplorer {
 			for (int j = 0; j < inputs.size(); j++) {
 				
 				TransactionReference reference = inputs.get(j).reference();
+				byte[] encodedPublicKey = this.recipientPublicKey(reference).getEncoded();
+				String encodedPublicKeyInHex = BaseConverter.bytesDecToHex(encodedPublicKey);
 				
 				Element greatgrandchild = doc.createElement("input");
 				greatgrandchild.setAttribute("inputID", String.valueOf(j + 1));
-				greatgrandchild.setTextContent(this.recipientAddress(reference));
+				greatgrandchild.setTextContent(encodedPublicKeyInHex);
 				grandchild.appendChild(greatgrandchild);
 				
 			}
@@ -212,11 +207,12 @@ public class BlockExplorer {
 				node.setAttribute("outputID", String.valueOf(k + 1));
 				
 				Node element = doc.createElement("address");
-				element.setTextContent(output.recipientAddress());
+				byte[] encoded = output.recipientAddress().getEncoded();
+				element.setTextContent(BaseConverter.bytesDecToHex(encoded));
 				node.appendChild(element);
 				
 				element = doc.createElement("amount");
-				element.setTextContent(Integer.toString(output.amount()));
+				element.setTextContent(output.amount());
 				node.appendChild(element);
 				
 				grandchild.appendChild(node);
@@ -226,7 +222,7 @@ public class BlockExplorer {
 		}
 		
 		doc.getDocumentElement().appendChild(block);
-		write(doc.getDocumentElement());
+		XMLio.write(filename, doc, doc.getDocumentElement());
 	}
 	
 	/*
@@ -242,76 +238,4 @@ public class BlockExplorer {
 		return node.getTextContent();
 	}
 	
-	private void write(Node node) {
-
-	    DOMSource source = new DOMSource(node);
-	    StreamResult result = new StreamResult(new File(domain));
-	    
-		try {
-			TransformerFactory tFactory = TransformerFactory.newInstance();
-			Transformer transformer = tFactory.newTransformer();
-			transformer.setOutputProperty("indent", "yes");
-			
-			Document document = parse(domain);
-			if (document.getDoctype() != null) {
-			    String systemValue = (new File (document.getDoctype().getSystemId())).getName();
-			    transformer.setOutputProperty(OutputKeys.DOCTYPE_SYSTEM, systemValue);    
-			}
-			
-			transformer.transform(source, result);
-			
-		} catch (TransformerConfigurationException tce) {
-			tce.printStackTrace();
-		} catch (TransformerException te) {
-			te.printStackTrace();
-		}
-		
-	}
-	
-	private Document parse(URI domain) {
-		
-		Document doc = null;
-		
-		try {
-			
-			File file = new File(domain);
-			
-			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-			DocumentBuilder docBuilder = factory.newDocumentBuilder();
-			
-			doc = docBuilder.parse(file);
-			
-		} catch (SAXParseException spe) {
-            
-			// Error generated by the parser
-            System.out.println("\n** Parsing error" + ", line " + spe.getLineNumber() + ", uri " + spe.getSystemId());
-            System.out.println("  " + spe.getMessage() );
-  
-            // Use the contained exception, if any
-            Exception x = spe;
-            if (spe.getException() != null) x = spe.getException();
-            x.printStackTrace();
-            
-        } catch (SAXException sxe) {
-           
-        	// Error generated by this application (or a parser-initialization error)
-            Exception x = sxe;
-            if (sxe.getException() != null) x = sxe.getException();
-            x.printStackTrace();
-            
-        } catch (ParserConfigurationException pce) {
-            
-        	// Parser with specified options cannot be built 
-            pce.printStackTrace();
-            
-        } catch (IOException ioe) {
-            
-        	// I/O error
-            ioe.printStackTrace();
-            
-        }
-		
-		return doc;
-	}
-
 }
