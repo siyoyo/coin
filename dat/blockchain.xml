@@ -1,14 +1,18 @@
-<?xml version="1.0"?>
-<blockchain>
-	<block>
-		<header>
-			<previousPoW>0013965daa8b69d8f56c3482f2d6894a56351e4a4c1ab38c135a189183e949a6</previousPoW>
-			<merkleRoot></merkleRoot>
-			<nonce></nonce>
-			<difficulty>00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff</difficulty>
-		</header>
-		<body>
-			<transaction></transaction>
-		</body>
-	</block>
+<?xml version="1.0"?><blockchain><block height="1">
+<header>
+<previousPoW>b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9</previousPoW>
+<pow>00a74c1a4f478a7c3729e36a3bbb10ef398ebea5c509c3e7e0dd1b36ff49aac1</pow>
+<merkleRoot>6564eb5dd17a19234cd42a390548a1743a9e241c0c076f89b6fecefc172de5b7</merkleRoot>
+<nonce>123</nonce>
+<difficulty>00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff</difficulty>
+</header>
+<body>
+<transaction txID="1">
+<output outputID="1">
+<address>305c300d06092a864886f70d0101010500034b003048024100c8a13b8a3af54a82b468a55d83f2044b3c91bfabae8b8043d068efc8d8f8e3e09e51b9c0eaf69bbd5b628de85a8522d3b20db6c6c8b62da204a5b3f5853115210203010001</address>
+<amount>50</amount>
+</output>
+</transaction>
+</body>
+</block>
 </blockchain>
