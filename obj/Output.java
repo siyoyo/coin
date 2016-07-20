@@ -2,6 +2,8 @@ package obj;
 
 import java.security.interfaces.RSAPublicKey;
 
+import util.BaseConverter;
+
 /**
  * <b>References</b>
  * <ul>
@@ -11,10 +13,13 @@ import java.security.interfaces.RSAPublicKey;
 public class Output {
 	
 	private RSAPublicKey recipientPublicKey;
+	private String recipientAddress;
 	private String amount;
 	
-	public Output(RSAPublicKey recipientAddress, String amount) {
-		this.recipientPublicKey = recipientAddress;
+	public Output(RSAPublicKey recipientPublicKey, String amount) {
+		this.recipientPublicKey = recipientPublicKey;
+		byte[] encodedPublicKey = recipientPublicKey.getEncoded(); 
+		this.recipientAddress = BaseConverter.bytesDecToHex(encodedPublicKey);
 		this.amount = amount;
 	}
 	
@@ -22,8 +27,12 @@ public class Output {
 		return amount + " to " + recipientPublicKey.getModulus().toString(16);
 	}
 	
-	public RSAPublicKey recipientAddress() {
+	public RSAPublicKey recipientPublicKey() {
 		return recipientPublicKey;
+	}
+	
+	public String recipientAddress() {
+		return recipientAddress;
 	}
 	
 	public String amount() {

@@ -18,6 +18,7 @@ public class Transaction {
 	private ArrayList<Input> inputs;
 	private ArrayList<Output> outputs;
 	private byte[][] signatures;
+	private String transactionFee;
 	
 //	private Logger logger = Logger.getLogger(Transaction.class.getName());
 	
@@ -36,6 +37,10 @@ public class Transaction {
 	
 	public byte[][] signatures() {
 		return signatures;
+	}
+	
+	public String transactionFee() {
+		return transactionFee;
 	}
 	
 	/**
@@ -87,9 +92,10 @@ public class Transaction {
 	 */
 	public byte[][] finalise(BlockExplorer explorer) throws TransactionInputsLessThanOutputsException, InvalidKeyException, NoSuchAlgorithmException, SignatureException {
 		
-		if (inputsLargerThanOutputs(explorer)) {	// TODO transaction fee to miner
-			
-//			logger.info("Transaction fee: " + (sumInputs() - sumOutputs()));
+		int txFee = sumInputs(explorer) - sumOutputs();
+		transactionFee = String.valueOf(txFee);
+		
+		if (txFee >= 0) {
 		
 			byte[] outputsInBytes = getOutputsInBytes();
 			signatures = new byte[inputs.size()][];
@@ -126,10 +132,6 @@ public class Transaction {
 	/*
 	 * Private methods
 	 */
-	private boolean inputsLargerThanOutputs(BlockExplorer explorer) {
-		return (sumInputs(explorer) >= sumOutputs()) ? true : false;
-	}
-	
 	private int sumInputs(BlockExplorer explorer) {
 		
 		int sumInputs = 0;

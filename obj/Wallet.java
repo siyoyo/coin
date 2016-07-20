@@ -74,7 +74,7 @@ public class Wallet {
 		key.appendChild(element);
 		
 		// Store balance
-		element = doc.createElement("balance");
+		element = doc.createElement("amount");
 		element.setTextContent(amount);
 		key.appendChild(element);
 		
@@ -106,6 +106,30 @@ public class Wallet {
 		}
 		
 		return null;
+	}
+	
+	public void updateBalance(String encodedPublicKeyInHex, String amount) throws ParserConfigurationException, SAXException, IOException, TransformerException, URISyntaxException {
+		
+		NodeList publicKeys = doc.getElementsByTagName("public");
+		
+		for (int i = 0; i < publicKeys.getLength(); i++) {
+			
+			Node pubNode = publicKeys.item(i);
+			
+			if (pubNode.getTextContent().compareTo(encodedPublicKeyInHex) == 0) {
+				
+				Node node = pubNode.getNextSibling().getNextSibling();	// private node
+				node = node.getNextSibling().getNextSibling();			// amount node
+				String balance = node.getTextContent();
+				
+				int updatedBalance = Integer.parseInt(balance) - Integer.parseInt(amount);
+				balance = String.valueOf(updatedBalance);
+				
+				node.setTextContent(balance);
+			}
+		}
+		
+		XMLio.write(WALLET, doc, doc.getDocumentElement());
 	}
 	
 }

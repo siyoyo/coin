@@ -34,18 +34,18 @@ public class NetworkNode {
 	
 	public final static String BLOCKCHAIN = "dat/blockchain.xml";
 	public final static String UTXO = "dat/utxo.xml";
-	public final static String KEY_ALGORITHM = "RSA";
-	public final static String SIGNATURE_ALGORITHM = "SHA256withRSA";
 	public final static String REWARD = "50";
 	public static String difficulty = "00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 	
 //	private Logger logger = Logger.getLogger(NetworkNode.class.getName());
-	private BlockExplorer explorer;
+	private BlockExplorer blockExplorer;
+	private UTXOExplorer utxoExplorer;
 	private Wallet wallet;
 	private ArrayList<Transaction> mempool;
 	
 	public NetworkNode() throws ParserConfigurationException, SAXException, IOException, URISyntaxException {
-		explorer = new BlockExplorer(BLOCKCHAIN);
+		blockExplorer = new BlockExplorer(BLOCKCHAIN);
+		utxoExplorer = new UTXOExplorer(UTXO);
 		wallet = new Wallet();
 		mempool = new ArrayList<Transaction>();
 //		updateMempool();
@@ -57,10 +57,8 @@ public class NetworkNode {
 	}
 	
 	public void mine() throws URISyntaxException, TransactionInputsLessThanOutputsException, GeneralSecurityException, ParserConfigurationException, SAXException, IOException, DOMException, TransformerException {
-		
-		Block newBlock = makeBlock(explorer);
-		explorer.extendBlockchain(newBlock, difficulty);
-		
+		Block newBlock = makeBlock(blockExplorer);
+		blockExplorer.extendBlockchain(newBlock, difficulty);
 	}
 	
 	/*
@@ -79,28 +77,33 @@ public class NetworkNode {
 	}
 	
 	private Block makeBlock(BlockExplorer explorer) throws URISyntaxException, TransactionInputsLessThanOutputsException, GeneralSecurityException, TransformerException, ParserConfigurationException, SAXException, IOException {
+
+		// Validate transactions
+		ArrayList<Transaction> transactions = cloneMempool();
+		transactions = finalise(transactions);
 		
 		// Create mint transaction
 		KeyPair newKeyPair = RSA512.generateKeyPair();
 		RSAPublicKey publicKey = (RSAPublicKey) newKeyPair.getPublic();
 		
-		Output gold = new Output(publicKey, REWARD);
+		int totalReward = Integer.parseInt(totalFees(transactions)) + Integer.parseInt(REWARD);
+		Output gold = new Output(publicKey, String.valueOf(totalReward));
 		
 		Transaction mint = new Transaction();
 		mint.addOutput(gold);
-		
-		// Validate transactions
-		ArrayList<Transaction> transactions = cloneMempool();
-		transactions = finalise(transactions);
 		
 		// Only include transactions which are valid
 		MerkleTree tree = new MerkleTree();
 		String root = tree.getRoot(explorer, mint, transactions);
 		
+		// Genesis block: previousPoW = b1769976a749b969f3dd57ac31b302805a84665848600e57c756b1fad44a12d7
 		BlockHeader newHeader = new BlockHeader(explorer.getLastBlockHeader(), root);
 		String pow = newHeader.hash(difficulty);
-		
 		Block newBlock = new Block(newHeader, pow, tree.orderedTransactions());
+		
+		// Update UTXO list
+		utxoExplorer.update(newBlock);
+		
 		wallet.save(newKeyPair, REWARD);
 		mempool.clear();
 		
@@ -118,11 +121,13 @@ public class NetworkNode {
 	
 	private ArrayList<Transaction> finalise(ArrayList<Transaction> transactions) throws InvalidKeyException, NoSuchAlgorithmException, SignatureException, TransactionInputsLessThanOutputsException, InvalidKeySpecException, DOMException {
 		
+		ArrayList<TransactionReference> references = new ArrayList<TransactionReference>();
+		
 		// For each transaction
 		for (int i = 0; i < transactions.size(); i++) {
 			
 			Transaction tx = transactions.get(i);
-			byte[][] signatures = tx.finalise(explorer);
+			byte[][] signatures = tx.finalise(blockExplorer);
 			byte[] outputsInBytes = tx.getOutputsInBytes();
 			
 			ArrayList<Input> inputs = tx.inputs();
@@ -130,17 +135,52 @@ public class NetworkNode {
 			// For each input
 			for (int j = 0; j < inputs.size(); j++) {
 				
+				// Check UTXO list
+				Input input = inputs.get(j);
+				boolean validUTXO = utxoExplorer.valid(input);
+				
+				// Check signature
 				TransactionReference reference = inputs.get(j).reference();
-				RSAPublicKey publicKey = explorer.recipientPublicKey(reference);
+				RSAPublicKey publicKey = blockExplorer.recipientPublicKey(reference);
 				
 				Signature signature = new Signature();
-				boolean valid = signature.verify(outputsInBytes, signatures[j], publicKey); 
+				boolean validSignature = signature.verify(outputsInBytes, signatures[j], publicKey); 
 				
-				if (!valid) transactions.remove(i);
-			}		
+				// Check for double-spending in same transaction or group of transactions
+				boolean seen = seen(references, reference);
+				if (!seen) references.add(reference);
+				
+				if (!validUTXO || !validSignature || seen) transactions.remove(i);
+			}
 		}
 		
 		return transactions;
+	}
+	
+	private String totalFees(ArrayList<Transaction> finalisedTransactions) {
+		
+		int fees = 0;
+		
+		for (int i = 0; i < finalisedTransactions.size(); i++) {
+			Transaction tx = finalisedTransactions.get(i);
+			fees += Integer.parseInt(tx.transactionFee());
+		}
+		
+		return String.valueOf(fees);
+	}
+	
+	private boolean seen(ArrayList<TransactionReference> references, TransactionReference newReference) {
+		
+		for (int i = 0; i < references.size(); i++) {
+			
+			TransactionReference reference = references.get(i);
+			
+			if (newReference.pow().compareTo(reference.pow()) == 0 &
+					newReference.transactionID().compareTo(reference.transactionID()) == 0 &
+					newReference.outputID().compareTo(reference.outputID()) == 0) return true;
+		}
+		
+		return false;
 	}
 
 }

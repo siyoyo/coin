@@ -45,6 +45,10 @@ public class BlockExplorer {
 		height = blocks.getLength();
 	}
 	
+	public Document doc() {
+		return doc;
+	}
+	
 	public int height() {
 		return height;
 	}
@@ -84,7 +88,7 @@ public class BlockExplorer {
 		return null;
 	}
 	
-	public RSAPublicKey recipientPublicKey(TransactionReference reference) throws NoSuchAlgorithmException, InvalidKeySpecException, DOMException {
+	public String recipientAddress(TransactionReference reference) {
 		
 		Element node = (Element) getBlockByHash(reference.pow());
 		NodeList transactions = node.getElementsByTagName("transaction");
@@ -102,12 +106,18 @@ public class BlockExplorer {
 						output.getAttribute("outputID").compareTo(reference.outputID()) == 0) {
 					
 					Node n = output.getFirstChild().getNextSibling();	// address node
-					return RSA512.decodePublicKey(n.getTextContent());
+					return n.getTextContent();
 				}			
 			}
 		}
 		
 		return null;
+	}
+	
+	public RSAPublicKey recipientPublicKey(TransactionReference reference) throws NoSuchAlgorithmException, InvalidKeySpecException, DOMException {
+		
+		String address = recipientAddress(reference);
+		return RSA512.decodePublicKey(address);
 	}
 	
 	public String transactionAmount(TransactionReference reference) {
@@ -207,7 +217,7 @@ public class BlockExplorer {
 				node.setAttribute("outputID", String.valueOf(k + 1));
 				
 				Node element = doc.createElement("address");
-				byte[] encoded = output.recipientAddress().getEncoded();
+				byte[] encoded = output.recipientPublicKey().getEncoded();
 				element.setTextContent(BaseConverter.bytesDecToHex(encoded));
 				node.appendChild(element);
 				

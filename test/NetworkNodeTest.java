@@ -31,7 +31,7 @@ public class NetworkNodeTest {
 		try {
 			
 			BlockExplorer explorer = new BlockExplorer("dat/blockchain.xml");
-			TransactionReference reference = new TransactionReference("00a74c1a4f478a7c3729e36a3bbb10ef398ebea5c509c3e7e0dd1b36ff49aac1", "1", "1");
+			TransactionReference reference = new TransactionReference("00c34517ab38e4727c4ffb1412673ad460374dda84f84c6038e5a65011d3289f", "1", "1");
 			
 			RSAPublicKey referencePublicKey = explorer.recipientPublicKey(reference);
 			String encodedPublicKeyInHex = BaseConverter.bytesDecToHex(referencePublicKey.getEncoded());
@@ -45,16 +45,20 @@ public class NetworkNodeTest {
 			
 			KeyPair outputKeyPair = RSA512.generateKeyPair(); 
 			RSAPublicKey publicKey = (RSAPublicKey) outputKeyPair.getPublic();
-			Output output = new Output(publicKey, "5");
+			Output output = new Output(publicKey, "27");
 			
-			Transaction tx = new Transaction();
-			tx.addInput(input);
-			tx.addInput(wrongInput);
-			tx.addOutput(output);
+			Transaction tx1 = new Transaction();
+			Transaction tx2 = new Transaction();
+			tx1.addInput(input);
+			tx2.addInput(wrongInput);
+			tx1.addOutput(output);
 			
 			NetworkNode node = new NetworkNode();
-			node.updateMempool(tx);
+			node.updateMempool(tx1);
+			node.updateMempool(tx2);
 			node.mine();
+			
+			wallet.updateBalance(encodedPublicKeyInHex, output.amount());
 			
 		} catch (ParserConfigurationException e) {
 			e.printStackTrace();
@@ -73,8 +77,6 @@ public class NetworkNodeTest {
 		} catch (TransformerException e) {
 			e.printStackTrace();
 		}
-		
-		
 		
 	}
 

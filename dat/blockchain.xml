@@ -1,15 +1,16 @@
-<?xml version="1.0"?><blockchain><block height="1">
+<?xml version="1.0" encoding="UTF-8"?><blockchain>
+<block height="1">
 <header>
-<previousPoW>b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9</previousPoW>
-<pow>00a74c1a4f478a7c3729e36a3bbb10ef398ebea5c509c3e7e0dd1b36ff49aac1</pow>
+<previousPoW>b1769976a749b969f3dd57ac31b302805a84665848600e57c756b1fad44a12d7</previousPoW>
+<pow>00c34517ab38e4727c4ffb1412673ad460374dda84f84c6038e5a65011d3289f</pow>
 <merkleRoot>6564eb5dd17a19234cd42a390548a1743a9e241c0c076f89b6fecefc172de5b7</merkleRoot>
-<nonce>123</nonce>
+<nonce>530</nonce>
 <difficulty>00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff</difficulty>
 </header>
 <body>
 <transaction txID="1">
 <output outputID="1">
-<address>305c300d06092a864886f70d0101010500034b003048024100c8a13b8a3af54a82b468a55d83f2044b3c91bfabae8b8043d068efc8d8f8e3e09e51b9c0eaf69bbd5b628de85a8522d3b20db6c6c8b62da204a5b3f5853115210203010001</address>
+<address>305c300d06092a864886f70d0101010500034b0030480241008843f2f1440e7abcbb20300639c6dfab14ade35352dcc67589ff74fb15aee034476035afecda5ad5d6f356d808ade2532216d6c6314390fcec11363c7f9cb18f0203010001</address>
 <amount>50</amount>
 </output>
 </transaction>
