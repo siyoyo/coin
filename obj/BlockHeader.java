@@ -14,6 +14,7 @@ public class BlockHeader {
 	
 	private String previousPoW;
 	private String merkleRoot;
+	private String difficulty;
 	private int nonce;
 
 	public BlockHeader(String previousPoW, String merkleRoot) {		
@@ -29,10 +30,11 @@ public class BlockHeader {
 	 */
 	public String hash(String difficulty) {
 		
+		this.difficulty = difficulty; 
 		String result = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 		nonce = -1;
 		
-		while (result.compareTo(difficulty) > 0) {
+		while (result.compareTo(this.difficulty) > 0) {
 			
 			try {
 				
@@ -49,6 +51,14 @@ public class BlockHeader {
 		return result;
 	}
 	
+	public boolean checkHash(String pow) throws NoSuchAlgorithmException {
+		
+		String result = tryNonce(nonce);
+		
+		if (result.compareTo(pow) == 0) return true;
+		else return false;
+	}
+	
 	public String previousPoW() {
 		return previousPoW;
 	}
@@ -57,8 +67,20 @@ public class BlockHeader {
 		return nonce;
 	}
 	
+	public void setNonce(int nonce) {
+		this.nonce = nonce;
+	}
+	
 	public String merkleRoot() {
 		return merkleRoot;
+	}
+	
+	public String difficulty() {
+		return difficulty;
+	}
+	
+	public void setDifficulty(String difficulty) {
+		this.difficulty = difficulty;
 	}
 	
 	private String tryNonce(int nonce) throws NoSuchAlgorithmException {

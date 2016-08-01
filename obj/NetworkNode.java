@@ -1,6 +1,9 @@
 package obj;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
@@ -10,7 +13,6 @@ import java.security.SignatureException;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
-//import java.util.logging.Logger;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
@@ -21,7 +23,6 @@ import org.xml.sax.SAXException;
 import obj.Transaction.TransactionInputsLessThanOutputsException;
 import util.MerkleTree;
 import util.RSA512;
-import util.Signature;
 
 /**
  * <b>References</b>
@@ -34,46 +35,75 @@ public class NetworkNode {
 	
 	public final static String BLOCKCHAIN = "dat/blockchain.xml";
 	public final static String UTXO = "dat/utxo.xml";
+	public final static String PEERS = "dat/peers.xml";
+	
 	public final static String REWARD = "50";
 	public static String difficulty = "00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 	
-//	private Logger logger = Logger.getLogger(NetworkNode.class.getName());
+	public int port = 9999;
+	private Socket client;
+	private PrintWriter writer;
+//	private ArrayList<Socket> peers;
+	
 	private BlockExplorer blockExplorer;
 	private UTXOExplorer utxoExplorer;
 	private Wallet wallet;
 	private ArrayList<Transaction> mempool;
 	
-	public NetworkNode() throws ParserConfigurationException, SAXException, IOException, URISyntaxException {
+	public NetworkNode() throws ParserConfigurationException, SAXException, IOException, URISyntaxException, DOMException, TransactionInputsLessThanOutputsException, GeneralSecurityException, TransformerException {
+		
 		blockExplorer = new BlockExplorer(BLOCKCHAIN);
 		utxoExplorer = new UTXOExplorer(UTXO);
 		wallet = new Wallet();
+		
+//		peers = new ArrayList<Socket>();
 		mempool = new ArrayList<Transaction>();
-//		updateMempool();
+		
+		ServerSocket server = new ServerSocket(port);
+		client = server.accept();
+		System.out.println("Connection received from " + client.getInetAddress().getHostName());
+		writer = new PrintWriter(client.getOutputStream(), true);
+		
+//		findPeers();
+		
 	}
 	
-	public void connect() { // TODO
-		findPeers();
-		updateBlockchain();
+	public PrintWriter toClient() {
+		return writer;
 	}
 	
+//	public void updatePeerlist(Socket socket) {
+//		peers.add(socket);
+//	}
+	
+	public void updateMempool(Transaction transaction) {
+		mempool.add(transaction);
+	}
+
 	public void mine() throws URISyntaxException, TransactionInputsLessThanOutputsException, GeneralSecurityException, ParserConfigurationException, SAXException, IOException, DOMException, TransformerException {
 		Block newBlock = makeBlock(blockExplorer);
+		broadcastBlock(newBlock);
 		blockExplorer.extendBlockchain(newBlock, difficulty);
 	}
-	
+		
 	/*
 	 * Private methods
 	 */
-	private void findPeers() {
-		
-	}
+//	private void findPeers() throws ParserConfigurationException, SAXException, IOException, URISyntaxException {
+//		
+//		Document doc = XMLio.parse(PEERS);
+//		doc.getDocumentElement().normalize();
+//		NodeList peerlist = doc.getElementsByTagName("peer");
+//		
+//		for (int i = 0; i < peerlist.getLength(); i++) {
+//			String hostname = peerlist.item(i).getTextContent();
+//			Socket peer = new Socket(hostname, port);
+//			peers.add(peer);
+//		}
+//	}
 	
-	private void updateBlockchain() {
-		
-	}
-	
-	public void updateMempool(Transaction newTransaction) {
-		mempool.add(newTransaction);
+	private void broadcastBlock(Block block) {
+		writer.println(block.toString());
 	}
 	
 	private Block makeBlock(BlockExplorer explorer) throws URISyntaxException, TransactionInputsLessThanOutputsException, GeneralSecurityException, TransformerException, ParserConfigurationException, SAXException, IOException {
@@ -107,8 +137,7 @@ public class NetworkNode {
 		wallet.save(newKeyPair, REWARD);
 		mempool.clear();
 		
-		return newBlock;
-		
+		return newBlock;	
 	}
 			
 	private ArrayList<Transaction> cloneMempool() {
@@ -126,31 +155,29 @@ public class NetworkNode {
 		// For each transaction
 		for (int i = 0; i < transactions.size(); i++) {
 			
-			Transaction tx = transactions.get(i);
-			byte[][] signatures = tx.finalise(blockExplorer);
-			byte[] outputsInBytes = tx.getOutputsInBytes();
+			System.out.println("Finalising transaction " + (i + 1) + " of " + transactions.size() + " ...");
 			
-			ArrayList<Input> inputs = tx.inputs();
+			Transaction tx = transactions.get(i);
+			tx.finalise(blockExplorer);
+
+			// Check input against UTXO list and verify signatures
+			boolean validTransaction = tx.validate(i, blockExplorer, utxoExplorer);
 			
 			// For each input
+			ArrayList<Input> inputs = tx.inputs();
 			for (int j = 0; j < inputs.size(); j++) {
 				
-				// Check UTXO list
-				Input input = inputs.get(j);
-				boolean validUTXO = utxoExplorer.valid(input);
-				
-				// Check signature
-				TransactionReference reference = inputs.get(j).reference();
-				RSAPublicKey publicKey = blockExplorer.recipientPublicKey(reference);
-				
-				Signature signature = new Signature();
-				boolean validSignature = signature.verify(outputsInBytes, signatures[j], publicKey); 
-				
 				// Check for double-spending in same transaction or group of transactions
+				TransactionReference reference = inputs.get(j).reference();
 				boolean seen = seen(references, reference);
+				System.out.println("Input " + (i + 1) + "." + j + " has been seen previously in this group of transactions: " + seen);
 				if (!seen) references.add(reference);
 				
-				if (!validUTXO || !validSignature || seen) transactions.remove(i);
+				if (!validTransaction || seen) {
+					transactions.remove(i);
+					System.out.println("Input " + (i + 1) + "." + j + " is invalid and has been removed");
+				}
+				else System.out.println("Input " + (i + 1) + "." + j + " is valid");
 			}
 		}
 		

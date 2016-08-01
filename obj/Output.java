@@ -24,7 +24,7 @@ public class Output {
 	}
 	
 	public String toString() {
-		return amount + " to " + recipientPublicKey.getModulus().toString(16);
+		return amount + " to " + recipientAddress;
 	}
 	
 	public RSAPublicKey recipientPublicKey() {

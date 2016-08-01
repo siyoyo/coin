@@ -5,9 +5,15 @@ import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
+import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
+
+import org.w3c.dom.DOMException;
+
+import util.BaseConverter;
 //import java.util.logging.Logger;
+import util.Signature;
 
 /**
  * A Transaction is constructed from a list of inputs and outputs.  Inputs reference unspent outputs
@@ -20,7 +26,7 @@ public class Transaction {
 	private byte[][] signatures;
 	private String transactionFee;
 	
-//	private Logger logger = Logger.getLogger(Transaction.class.getName());
+	private String separator = " ";
 	
 	public Transaction() {
 		inputs = new ArrayList<Input>();
@@ -37,6 +43,10 @@ public class Transaction {
 	
 	public byte[][] signatures() {
 		return signatures;
+	}
+	
+	public void initialiseSignatures(int size) {
+		signatures = new byte[size][];
 	}
 	
 	public String transactionFee() {
@@ -98,7 +108,7 @@ public class Transaction {
 		if (txFee >= 0) {
 		
 			byte[] outputsInBytes = getOutputsInBytes();
-			signatures = new byte[inputs.size()][];
+			initialiseSignatures(inputs.size());
 			
 			for (int i = 0; i < inputs.size(); i++) signatures[i] = inputs.get(i).sign(outputsInBytes); 
 			
@@ -108,14 +118,71 @@ public class Transaction {
 			
 	}
 	
+	public boolean validate(int transactionID, BlockExplorer blockExplorer, UTXOExplorer utxoExplorer) throws NoSuchAlgorithmException, InvalidKeySpecException, DOMException, InvalidKeyException, SignatureException {
+		
+		byte[] outputsInBytes = this.getOutputsInBytes();
+		
+		if (this.inputs.size() == 0) {
+			System.out.println("No inputs to this transaction");
+		}
+		
+		// For each input
+		for (int j = 0; j < this.inputs.size(); j++) {
+			
+			// Check UTXO list
+			Input input = this.inputs.get(j);
+			boolean validUTXO = utxoExplorer.valid(input);
+			System.out.println("Input " + (transactionID + 1) + "." + j + " is found in the utxo list: " + validUTXO);
+			if (!validUTXO) return false;
+			
+			// Check signature
+			TransactionReference reference = this.inputs.get(j).reference();
+			RSAPublicKey publicKey = blockExplorer.recipientPublicKey(reference);
+			
+			Signature signature = new Signature();
+			boolean validSignature = signature.verify(outputsInBytes, this.signatures[j], publicKey); 
+			System.out.println("Input " + (transactionID + 1) + "." + j + " signature is verified: " + validSignature);
+			if (!validSignature) return false;
+		}
+		
+		return true;
+	}
+	
 	public byte[] getOutputsInBytes() {
 		
 		StringBuilder str = new StringBuilder();
-		for (int i = 0; i < outputs.size(); i++) str.append(outputs.get(i).toString() + "\n");
-		
+		for (int i = 0; i < outputs.size(); i++) str.append(outputs.get(i).toString() + " ");	
 		return str.toString().getBytes();
 	}
-
+	
+	public String toString() {
+		
+		StringBuilder str = new StringBuilder();
+		
+		str.append(inputs.size() + "#");
+		str.append(outputs.size() + "#");
+			
+		for (Input input:inputs) {
+			str.append(input.reference().pow() + separator);
+			str.append(input.reference().transactionID() + separator);
+			str.append(input.reference().outputID() + separator);
+		}
+		str.append(" IN ");
+		
+		for (Output output:outputs) {
+			str.append(BaseConverter.bytesDecToHex(output.recipientPublicKey().getEncoded()) + separator);
+			str.append(output.amount() + separator);
+		}
+		str.append(" OUT ");
+		
+		if (inputs.size() > 0) {
+			for (int i = 0; i < signatures.length; i++) str.append(BaseConverter.bytesDecToHex(signatures[i]) + separator); 
+		}
+		str.append(" TX ");
+		
+		return str.toString();
+	}
+		
 	@SuppressWarnings("serial") // TODO Serialize
 	public class TransactionInputsLessThanOutputsException extends Exception {
 		
@@ -128,7 +195,7 @@ public class Transaction {
 		}
 		
 	}
-		
+	
 	/*
 	 * Private methods
 	 */
@@ -146,9 +213,8 @@ public class Transaction {
 	
 	private int sumOutputs() {
 		
-		int sumOutputs = 0;
-		
-		for (int i = 0; i < outputs.size(); i++) sumOutputs += Integer.parseInt(outputs.get(i).amount());
+		int sumOutputs = 0;	
+		for (int i = 0; i < outputs.size(); i++) sumOutputs += Integer.parseInt(outputs.get(i).amount());	
 		
 		return sumOutputs;
 	}

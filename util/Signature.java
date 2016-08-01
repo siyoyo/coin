@@ -17,15 +17,13 @@ public class Signature {
 	}
 	
 	
-	public byte[] sign(byte[] outputsInBytes, RSAPrivateCrtKey privateKey) throws InvalidKeyException, SignatureException {
-		
+	public byte[] sign(byte[] outputsInBytes, RSAPrivateCrtKey privateKey) throws InvalidKeyException, SignatureException {	
 		signature.initSign(privateKey, new SecureRandom());
 		signature.update(outputsInBytes);
 		return signature.sign();
 	}
 	
 	public boolean verify(byte[] outputsInBytes, byte[] signedBytes, RSAPublicKey publicKey) throws InvalidKeyException, SignatureException {
-		
 		signature.initVerify(publicKey);
 		signature.update(outputsInBytes);
 		return signature.verify(signedBytes);

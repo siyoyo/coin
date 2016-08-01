@@ -18,6 +18,10 @@ public class Input {
 	private TransactionReference reference;
 	private RSAPrivateCrtKey senderPrivateKey;
 	
+	public Input(TransactionReference reference) {
+		this.reference = reference;
+	}
+	
 	public Input(TransactionReference reference, RSAPrivateCrtKey privateKey) {
 		this.reference = reference;
 		this.senderPrivateKey = privateKey;

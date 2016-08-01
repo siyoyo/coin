@@ -53,10 +53,11 @@ public class NetworkNodeTest {
 			tx2.addInput(wrongInput);
 			tx1.addOutput(output);
 			
-			NetworkNode node = new NetworkNode();
-			node.updateMempool(tx1);
-			node.updateMempool(tx2);
-			node.mine();
+			NetworkNode node1 = new NetworkNode();
+			
+			node1.updateMempool(tx1);
+			node1.updateMempool(tx2);
+			node1.mine();
 			
 			wallet.updateBalance(encodedPublicKeyInHex, output.amount());
 			
