@@ -45,10 +45,14 @@ public class BlockExplorer {
 	
 	public String getLastBlockHeader() {
 		
+		doc.getDocumentElement().normalize();
+		
 		NodeList blocks = doc.getElementsByTagName("block");
 		String height = String.valueOf(blocks.getLength());
+		
 		Node block = getBlockByHeight(height);
 		System.out.println(block.getFirstChild().getNodeName());
+		
 		return getHeader(block);
 	}
 	
