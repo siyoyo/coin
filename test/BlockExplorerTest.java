@@ -16,8 +16,8 @@ import org.w3c.dom.DOMException;
 import org.w3c.dom.Node;
 import org.xml.sax.SAXException;
 
-import obj.BlockExplorer;
 import obj.TransactionReference;
+import util.BlockExplorer;
 
 /**
  * <b>References</b>

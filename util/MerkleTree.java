@@ -7,7 +7,6 @@ import java.util.Collections;
 import java.util.Comparator;
 //import java.util.logging.Logger;
 
-import obj.BlockExplorer;
 import obj.Transaction;
 import obj.Transaction.TransactionInputsLessThanOutputsException;
 

@@ -1,4 +1,4 @@
-package obj;
+package util;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -16,9 +16,11 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import util.BaseConverter;
-import util.RSA512;
-import util.XMLio;
+import obj.Block;
+import obj.Input;
+import obj.Output;
+import obj.Transaction;
+import obj.TransactionReference;
 
 /**
  * The BlockExplorer class has superpowers like the ability to time travel
@@ -34,35 +36,26 @@ public class BlockExplorer {
 	
 	private String filename;
 	private Document doc;
-	private NodeList blocks;
-	private int height;
 	
 	public BlockExplorer(String filename) throws ParserConfigurationException, SAXException, IOException, URISyntaxException {
 		this.filename = filename;
 		doc = XMLio.parse(filename);
 		doc.getDocumentElement().normalize();
-		blocks = doc.getElementsByTagName("block");
-		height = blocks.getLength();
-	}
-	
-	public Document doc() {
-		return doc;
-	}
-	
-	public int height() {
-		return height;
 	}
 	
 	public String getLastBlockHeader() {
-		String sHeight = String.valueOf(height);
-		Node block = getBlockByHeight(sHeight);
+		
+		NodeList blocks = doc.getElementsByTagName("block");
+		String height = String.valueOf(blocks.getLength());
+		Node block = getBlockByHeight(height);
+		System.out.println(block.getFirstChild().getNodeName());
 		return getHeader(block);
 	}
 	
 	public Node getBlockByHeight(String requestedHeight) {
 		
+		NodeList blocks = doc.getElementsByTagName("block");
 		for (int i = 0; i < blocks.getLength(); i++) {
-			
 			Node block = blocks.item(i);
 			Element element = (Element) block;
 			String attribute = element.getAttributes().getNamedItem("height").getTextContent();	// Get height value
@@ -74,9 +67,8 @@ public class BlockExplorer {
 	}
 	
 	public Node getBlockByHash(String pow) {
-
+		NodeList blocks = doc.getElementsByTagName("block");
 		for (int i = 0; i < blocks.getLength(); i++) {
-			
 			Node block = blocks.item(i);
 			Node node = block.getFirstChild().getNextSibling();	// header node
 			node = node.getFirstChild().getNextSibling();		// previousPoW node
@@ -147,9 +139,16 @@ public class BlockExplorer {
 		return amount;
 	}
 	
+	public NodeList previousPoWs() {
+		return doc.getElementsByTagName("previousPoW");
+	}
+	
 	public void extendBlockchain(Block newBlock, String difficulty) throws DOMException, NoSuchAlgorithmException, InvalidKeySpecException, ParserConfigurationException, SAXException, IOException, TransformerException, URISyntaxException  {
 		
 		doc.getDocumentElement().normalize();
+		
+		NodeList blocks = doc.getElementsByTagName("block");
+		int height = blocks.getLength();
 		
 		Element block = doc.createElement("block");
 		block.setAttribute("height", String.valueOf(++height));
@@ -213,19 +212,19 @@ public class BlockExplorer {
 				
 				Output output = outputs.get(k);
 				
-				Element node = doc.createElement("output");
-				node.setAttribute("outputID", String.valueOf(k + 1));
+				Element el = doc.createElement("output");
+				el.setAttribute("outputID", String.valueOf(k + 1));
 				
-				Node element = doc.createElement("address");
+				Node n = doc.createElement("address");
 				byte[] encoded = output.recipientPublicKey().getEncoded();
-				element.setTextContent(BaseConverter.bytesDecToHex(encoded));
-				node.appendChild(element);
+				n.setTextContent(BaseConverter.bytesDecToHex(encoded));
+				el.appendChild(n);
 				
-				element = doc.createElement("amount");
-				element.setTextContent(output.amount());
-				node.appendChild(element);
+				n = doc.createElement("amount");
+				n.setTextContent(output.amount());
+				el.appendChild(n);
 				
-				grandchild.appendChild(node);
+				grandchild.appendChild(el);
 				
 			}
 			
@@ -242,9 +241,11 @@ public class BlockExplorer {
 	private String getHeader(Node block) {
 		
 		Node node = block.getFirstChild().getNextSibling();		// header node
+		System.out.println("node1: " + node.getNodeName());
 		node = node.getFirstChild().getNextSibling();			// previousPoW node
+		System.out.println("node2: " + node.getNodeName());
 		node = node.getNextSibling().getNextSibling();			// pow node
-		
+		System.out.println("node3: " + node.getNodeName());
 		return node.getTextContent();
 	}
 	

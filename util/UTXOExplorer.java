@@ -1,4 +1,4 @@
-package obj;
+package util;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -16,7 +16,11 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import util.XMLio;
+import obj.Block;
+import obj.Input;
+import obj.Output;
+import obj.Transaction;
+import obj.TransactionReference;
 
 public class UTXOExplorer {
 	

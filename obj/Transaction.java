@@ -12,8 +12,10 @@ import java.util.ArrayList;
 import org.w3c.dom.DOMException;
 
 import util.BaseConverter;
+import util.BlockExplorer;
 //import java.util.logging.Logger;
 import util.Signature;
+import util.UTXOExplorer;
 
 /**
  * A Transaction is constructed from a list of inputs and outputs.  Inputs reference unspent outputs

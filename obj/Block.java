@@ -8,6 +8,9 @@ import java.util.ArrayList;
 
 import org.w3c.dom.DOMException;
 
+import util.BlockExplorer;
+import util.UTXOExplorer;
+
 /**
  * A Block consists of a BlockHeader and an ArrayList of Transactions.
  */

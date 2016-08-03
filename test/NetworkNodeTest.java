@@ -13,15 +13,15 @@ import javax.xml.transform.TransformerException;
 import org.w3c.dom.DOMException;
 import org.xml.sax.SAXException;
 
-import obj.BlockExplorer;
 import obj.Input;
-import obj.NetworkNode;
 import obj.Output;
 import obj.Transaction;
 import obj.Transaction.TransactionInputsLessThanOutputsException;
+import p2p.NetworkNode;
 import obj.TransactionReference;
 import obj.Wallet;
 import util.BaseConverter;
+import util.BlockExplorer;
 import util.RSA512;
 
 public class NetworkNodeTest {
