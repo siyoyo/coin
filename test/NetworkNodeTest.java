@@ -20,7 +20,6 @@ import obj.Transaction.TransactionInputsLessThanOutputsException;
 import p2p.NetworkNode;
 import obj.TransactionReference;
 import obj.Wallet;
-import util.BaseConverter;
 import util.BlockExplorer;
 import util.RSA512;
 
@@ -31,13 +30,12 @@ public class NetworkNodeTest {
 		try {
 			
 			BlockExplorer explorer = new BlockExplorer("dat/blockchain.xml");
-			TransactionReference reference = new TransactionReference("00c34517ab38e4727c4ffb1412673ad460374dda84f84c6038e5a65011d3289f", "1", "1");
+			TransactionReference reference = new TransactionReference("0027068ef179a0d259acd071e153fc1721d45078baa3cf8581cc20db2630203b", "1", "1");
 			
-			RSAPublicKey referencePublicKey = explorer.recipientPublicKey(reference);
-			String encodedPublicKeyInHex = BaseConverter.bytesDecToHex(referencePublicKey.getEncoded());
+			String address = explorer.recipientAddress(reference);
 			
 			Wallet wallet = new Wallet();
-			RSAPrivateCrtKey privateKey = wallet.privateKey(encodedPublicKeyInHex);
+			RSAPrivateCrtKey privateKey = wallet.privateKey(address);
 			Input input = new Input(reference, privateKey);
 			
 			RSAPrivateCrtKey wrongPrivateKey = (RSAPrivateCrtKey) RSA512.generateKeyPair().getPrivate();
@@ -53,13 +51,13 @@ public class NetworkNodeTest {
 			tx2.addInput(wrongInput);
 			tx1.addOutput(output);
 			
-			NetworkNode node1 = new NetworkNode();
+			NetworkNode node = new NetworkNode();
+			node.initialiseExplorers("dat/blockchain.xml", "dat/utxo.xml");
+			node.updateMempool(tx1);
+			node.updateMempool(tx2);
+			node.mine();
 			
-			node1.updateMempool(tx1);
-			node1.updateMempool(tx2);
-			node1.mine();
-			
-			wallet.updateBalance(encodedPublicKeyInHex, output.amount());
+			wallet.updateBalance(address, output.amount());
 			
 		} catch (ParserConfigurationException e) {
 			e.printStackTrace();

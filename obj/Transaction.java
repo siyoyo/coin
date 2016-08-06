@@ -153,7 +153,7 @@ public class Transaction {
 	public byte[] getOutputsInBytes() {
 		
 		StringBuilder str = new StringBuilder();
-		for (int i = 0; i < outputs.size(); i++) str.append(outputs.get(i).toString() + " ");	
+		for (int i = 0; i < outputs.size(); i++) str.append(outputs.get(i).toString() + "\t");	
 		return str.toString().getBytes();
 	}
 	

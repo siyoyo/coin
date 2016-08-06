@@ -23,7 +23,6 @@ import javax.xml.transform.TransformerException;
 
 import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
-import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
@@ -53,13 +52,13 @@ import util.XMLio;
  */
 public class NetworkNode {
 	
-	public final static String BLOCKCHAIN = "dat/blockchain_";
-	public final static String UTXO = "dat/utxo_";
+	public final static String BLOCKCHAIN = "dat/blockchain";
+	public final static String UTXO = "dat/utxo";
 	public final static String PEERS = "dat/peers.xml";
 	public final static String EXT = ".xml";
 	
 	public final static String REWARD = "50";
-	public static String difficulty = "00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+	public static String difficulty = "00008fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 	
 	private ArrayList<Peer> peers;
 	private ArrayList<PrintWriter> toPeers;
@@ -94,14 +93,10 @@ public class NetworkNode {
 			socketListener.start();
 			
 			// Initialise explorers
-			node.blockExplorer = new BlockExplorer(BLOCKCHAIN + hostname + "_" + port + EXT);
-			node.utxoExplorer = new UTXOExplorer(UTXO + hostname + "_" + port + EXT);
+			node.initialiseExplorers(BLOCKCHAIN + "_" + hostname + "_" + port + EXT, UTXO + "_" + hostname + "_" + port + EXT);
 			
 			// Find peers
-			while (node.peers.size() < 5) {
-				System.out.println("number of peers: " + node.peers.size());
-				node.findPeer(hostname, port);
-			}
+			for (int i = 0; i < 3; i++) node.findPeer(hostname, port);
 			
 			for (int i = 0; i < node.peers.size(); i++) {
 				Peer peer = node.peers.get(i);
@@ -134,12 +129,17 @@ public class NetworkNode {
 	public void updateMempool(Transaction transaction) {
 		mempool.add(transaction);
 	}
+	
+	public void initialiseExplorers(String blockchainFilename, String utxoFilename) throws ParserConfigurationException, SAXException, IOException, URISyntaxException {
+		blockExplorer = new BlockExplorer(blockchainFilename);
+		utxoExplorer = new UTXOExplorer(utxoFilename);
+	}
 
 	public void mine() throws URISyntaxException, TransactionInputsLessThanOutputsException, GeneralSecurityException, ParserConfigurationException, SAXException, IOException, DOMException, TransformerException {
 		Block block = makeBlock(blockExplorer);
 		if (isNewBlock(block)) {
-			broadcastBlock(block);
 			blockExplorer.extendBlockchain(block, difficulty);
+			broadcastBlock(block);
 		}
 	}
 	
@@ -148,6 +148,7 @@ public class NetworkNode {
 		private ServerSocket server;
 		
 		public SocketListener(ServerSocket server) {
+			super("Socket listener");
 			this.server = server;
 		}
 		
@@ -166,6 +167,10 @@ public class NetworkNode {
 	}
 	
 	class BlockListener extends Thread {
+		
+		public BlockListener() {
+			super("Block listener");
+		}
 		
 		public void run() {
 			
@@ -187,7 +192,10 @@ public class NetworkNode {
 							System.out.println("Receiving block from " + peer.hostname() + " " + peer.port());
 							Block block = readBlock(incoming);
 							
-							if (isNewBlock(block)) blockExplorer.extendBlockchain(block, block.header().difficulty());
+							if (isNewBlock(block)) {
+								blockExplorer.extendBlockchain(block, block.header().difficulty());
+								broadcastBlock(block);
+							}
 						}
 					} catch (IOException e) {
 						// BufferedReader exception
@@ -227,6 +235,10 @@ public class NetworkNode {
 	
 	class Miner extends Thread {
 		
+		public Miner() {
+			super("Miner");
+		}
+		
 		public void run() {
 			try {
 				while (true) mine();
@@ -254,41 +266,34 @@ public class NetworkNode {
 	 * Private methods
 	 */
 	private boolean isNewBlock(Block block) {
-		
-		NodeList previousPoWs = blockExplorer.previousPoWs();
-		
-		for (int j = 0; j < previousPoWs.getLength(); j++) {
-			String previousPoW = previousPoWs.item(j).getTextContent(); 
-			if (block.header().previousPoW().compareTo(previousPoW) == 0) return false;
-		}
-		return true;
+		String latestHeader = blockExplorer.getLastBlockHeader();
+		if (block.header().previousPoW().compareTo(latestHeader) == 0) return true;
+		else return false;
 	}
 	
 	private void findPeer(String thisHostname, int thisPort) throws ParserConfigurationException, SAXException, IOException, URISyntaxException {
 		
 		Document doc = XMLio.parse(PEERS);
 		doc.getDocumentElement().normalize();
-		NodeList peerlist = doc.getElementsByTagName("peer");
+		
+		NodeList hosts = doc.getElementsByTagName("hostname");
+		NodeList ports = doc.getElementsByTagName("port");
 		
 		String hostname = thisHostname;
 		int port = thisPort;
-		int randomIndex = ThreadLocalRandom.current().nextInt(peerlist.getLength());
+		int randomIndex = ThreadLocalRandom.current().nextInt(hosts.getLength());
 		
 		boolean self = (hostname.compareTo(thisHostname) == 0) & (port == thisPort);
 		boolean unique = false;
 		
 		while (self || !unique) {
-			
-			Node node = peerlist.item(randomIndex);			// peer node
-			node = node.getFirstChild().getNextSibling();	// hostname node
-			hostname = node.getTextContent();
-			node = node.getNextSibling().getNextSibling();	// port node
-			port = Integer.parseInt(node.getTextContent());
+			hostname = hosts.item(randomIndex).getTextContent();
+			port = Integer.valueOf(ports.item(randomIndex).getTextContent());
 			
 			self = thisHostname.compareTo(hostname) == 0 & thisPort == port; 
 			unique = unique(hostname, port);
 		
-			randomIndex = ThreadLocalRandom.current().nextInt(peerlist.getLength());
+			randomIndex = ThreadLocalRandom.current().nextInt(hosts.getLength());
 		}
 		
 		Socket socket = new Socket(hostname, port);			// All peers listed must be on line otherwise deadlock

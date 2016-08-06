@@ -37,7 +37,6 @@ public class BlockHeader {
 		while (result.compareTo(this.difficulty) > 0) {
 			
 			try {
-				
 				System.out.print(++nonce + "\t");
 				result = tryNonce(nonce);
 				System.out.println(result);

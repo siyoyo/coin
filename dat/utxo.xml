@@ -1,8 +1,12 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<list>
+<?xml version="1.0" encoding="UTF-8"?><list>
 <utxo>
-<pow>00c34517ab38e4727c4ffb1412673ad460374dda84f84c6038e5a65011d3289f</pow>
+<pow>0035d7f287e4ddf361fe4ff70a1bda32283a3da34df238482738b370d474d052</pow>
 <txID>1</txID>
+<outputID>1</outputID>
+</utxo>
+<utxo>
+<pow>0035d7f287e4ddf361fe4ff70a1bda32283a3da34df238482738b370d474d052</pow>
+<txID>2</txID>
 <outputID>1</outputID>
 </utxo>
 </list>

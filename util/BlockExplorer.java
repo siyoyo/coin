@@ -49,9 +49,7 @@ public class BlockExplorer {
 		
 		NodeList blocks = doc.getElementsByTagName("block");
 		String height = String.valueOf(blocks.getLength());
-		
 		Node block = getBlockByHeight(height);
-		System.out.println(block.getFirstChild().getNodeName());
 		
 		return getHeader(block);
 	}
@@ -59,6 +57,7 @@ public class BlockExplorer {
 	public Node getBlockByHeight(String requestedHeight) {
 		
 		NodeList blocks = doc.getElementsByTagName("block");
+		
 		for (int i = 0; i < blocks.getLength(); i++) {
 			Node block = blocks.item(i);
 			Element element = (Element) block;
@@ -71,14 +70,12 @@ public class BlockExplorer {
 	}
 	
 	public Node getBlockByHash(String pow) {
-		NodeList blocks = doc.getElementsByTagName("block");
-		for (int i = 0; i < blocks.getLength(); i++) {
-			Node block = blocks.item(i);
-			Node node = block.getFirstChild().getNextSibling();	// header node
-			node = node.getFirstChild().getNextSibling();		// previousPoW node
-			node = node.getNextSibling().getNextSibling();		// pow node
-			
-			if (node.getTextContent().compareTo(pow) == 0) return block;
+		
+		NodeList pows = doc.getElementsByTagName("pow");
+		
+		for (int i = 0; i < pows.getLength(); i++) {
+			Node node = pows.item(i);
+			if (node.getTextContent().compareTo(pow) == 0) return node.getParentNode().getParentNode();
 		}
 		
 		return null;
@@ -106,13 +103,38 @@ public class BlockExplorer {
 				}			
 			}
 		}
+		return null;
+	}
+	
+	public String recipientPublicKeyString (TransactionReference reference) {
+		
+		Element node = (Element) getBlockByHash(reference.pow());
+		NodeList transactions = node.getElementsByTagName("transaction");
+		
+		for (int i = 0; i < transactions.getLength(); i++) {
+			
+			Element transaction = (Element) transactions.item(i);
+			NodeList outputs = transaction.getElementsByTagName("output");
+			
+			for (int j = 0; j < outputs.getLength(); j++) {
+				
+				Element output = (Element) outputs.item(j);
+				
+				if (transaction.getAttribute("txID").compareTo(reference.transactionID()) == 0 &
+						output.getAttribute("outputID").compareTo(reference.outputID()) == 0) {
+					
+					Node n = output.getFirstChild().getNextSibling();	// address node
+					n = n.getNextSibling().getNextSibling();			// publickey node
+					return n.getTextContent();
+				}			
+			}
+		}
 		
 		return null;
 	}
 	
 	public RSAPublicKey recipientPublicKey(TransactionReference reference) throws NoSuchAlgorithmException, InvalidKeySpecException, DOMException {
-		
-		String address = recipientAddress(reference);
+		String address = recipientPublicKeyString(reference);
 		return RSA512.decodePublicKey(address);
 	}
 	
@@ -134,6 +156,7 @@ public class BlockExplorer {
 				if (transaction.getAttribute("txID").compareTo(reference.transactionID()) == 0 &
 						output.getAttribute("outputID").compareTo(reference.outputID()) == 0) {
 					Node n = output.getFirstChild().getNextSibling();	// address node
+					n = n.getNextSibling().getNextSibling();			// publickey node
 					n = n.getNextSibling().getNextSibling();			// amount node
 					amount = n.getTextContent();
 				}
@@ -141,10 +164,6 @@ public class BlockExplorer {
 		}
 		
 		return amount;
-	}
-	
-	public NodeList previousPoWs() {
-		return doc.getElementsByTagName("previousPoW");
 	}
 	
 	public void extendBlockchain(Block newBlock, String difficulty) throws DOMException, NoSuchAlgorithmException, InvalidKeySpecException, ParserConfigurationException, SAXException, IOException, TransformerException, URISyntaxException  {
@@ -158,7 +177,6 @@ public class BlockExplorer {
 		block.setAttribute("height", String.valueOf(++height));
 		
 		block.appendChild(doc.createElement("header"));
-		block.appendChild(doc.createElement("body"));
 		
 		// Block header
 		Node child = block.getFirstChild();
@@ -184,6 +202,7 @@ public class BlockExplorer {
 		child.appendChild(grandchild);
 		
 		// Block body
+		block.appendChild(doc.createElement("body"));
 		child = block.getLastChild();
 		
 		ArrayList<Transaction> transactions = newBlock.transactions();
@@ -200,12 +219,11 @@ public class BlockExplorer {
 			for (int j = 0; j < inputs.size(); j++) {
 				
 				TransactionReference reference = inputs.get(j).reference();
-				byte[] encodedPublicKey = this.recipientPublicKey(reference).getEncoded();
-				String encodedPublicKeyInHex = BaseConverter.bytesDecToHex(encodedPublicKey);
+				String address = this.recipientAddress(reference);
 				
 				Element greatgrandchild = doc.createElement("input");
 				greatgrandchild.setAttribute("inputID", String.valueOf(j + 1));
-				greatgrandchild.setTextContent(encodedPublicKeyInHex);
+				greatgrandchild.setTextContent(address);
 				grandchild.appendChild(greatgrandchild);
 				
 			}
@@ -220,8 +238,11 @@ public class BlockExplorer {
 				el.setAttribute("outputID", String.valueOf(k + 1));
 				
 				Node n = doc.createElement("address");
-				byte[] encoded = output.recipientPublicKey().getEncoded();
-				n.setTextContent(BaseConverter.bytesDecToHex(encoded));
+				n.setTextContent(output.recipientAddress());
+				el.appendChild(n);
+				
+				n = doc.createElement("publicKey");
+				n.setTextContent(output.recipientPublicKeyString());
 				el.appendChild(n);
 				
 				n = doc.createElement("amount");
@@ -236,6 +257,50 @@ public class BlockExplorer {
 		
 		doc.getDocumentElement().appendChild(block);
 		XMLio.write(filename, doc, doc.getDocumentElement());
+		System.out.println("Added new block " + newBlock.pow());
+	}
+	
+	public static int longestMatch(String chain1, String chain2) throws ParserConfigurationException, SAXException, IOException, URISyntaxException {
+		
+		Document doc1 = XMLio.parse(chain1);
+		Document doc2 = XMLio.parse(chain2);
+		
+		NodeList blocks1 = doc1.getElementsByTagName("block");
+		NodeList blocks2 = doc2.getElementsByTagName("block");
+		
+		System.out.println("Height of " + chain1 + ": " + blocks1.getLength());
+		System.out.println("Height of " + chain2 + ": " + blocks2.getLength());
+		
+		int longestPotential = Math.min(blocks1.getLength(), blocks2.getLength());
+		int longestMatch = 0;
+		
+		Node block1, block2, pow1, pow2;
+		NodeList nodes1, nodes2;
+		String hash1 = "hash1", hash2 = "hash2";
+		
+		for (int i = 0; i < longestPotential; i++) {
+			
+			block1 = blocks1.item(i);
+			block2 = blocks2.item(i);
+			
+			nodes1 = block1.getFirstChild().getNextSibling().getChildNodes();
+			nodes2 = block2.getFirstChild().getNextSibling().getChildNodes();
+			
+			for (int j = 0; j < nodes1.getLength(); j++) {
+				pow1 = nodes1.item(j);
+				if (pow1.getNodeName().compareTo("pow") == 0) hash1 = pow1.getTextContent();
+			}
+			
+			for (int k = 0; k < nodes2.getLength(); k++) {
+				pow2 = nodes2.item(k);
+				if (pow2.getNodeName().compareTo("pow") == 0) hash2 = pow2.getTextContent();
+			}
+			
+			if (hash1.compareTo(hash2) == 0) longestMatch++;
+			else break;
+		}
+		
+		return longestMatch;
 	}
 	
 	/*
@@ -244,13 +309,23 @@ public class BlockExplorer {
 	
 	private String getHeader(Node block) {
 		
-		Node node = block.getFirstChild().getNextSibling();		// header node
-		System.out.println("node1: " + node.getNodeName());
-		node = node.getFirstChild().getNextSibling();			// previousPoW node
-		System.out.println("node2: " + node.getNodeName());
-		node = node.getNextSibling().getNextSibling();			// pow node
-		System.out.println("node3: " + node.getNodeName());
-		return node.getTextContent();
+		NodeList children = block.getChildNodes();
+		Node node;
+		
+		for (int i = 0; i < children.getLength(); i++) {
+			
+			node = children.item(i);
+			if (node.getNodeName().compareTo("header") == 0) {
+				
+				NodeList grandchildren = node.getChildNodes();
+				for (int j = 0; j < grandchildren.getLength(); j++) {
+					
+					node = grandchildren.item(j);
+					if (node.getNodeName().compareTo("pow") == 0) return node.getTextContent();
+				}
+			}
+		}
+		return null;
 	}
 	
 }

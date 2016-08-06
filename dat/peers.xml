@@ -1,27 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <peerlist>
 <peer>
-	<hostname>0.0.0.0</hostname>
-	<port>5008</port>
-</peer>
-<peer>
-	<hostname>0.0.0.0</hostname>
-	<port>5007</port>
-</peer>
-<peer>
-	<hostname>0.0.0.0</hostname>
-	<port>5006</port>
-</peer>
-<peer>
-	<hostname>0.0.0.0</hostname>
+	<hostname>yinyee.local</hostname>
 	<port>5002</port>
 </peer>
 <peer>
-	<hostname>0.0.0.0</hostname>
+	<hostname>yinyee.local</hostname>
 	<port>5003</port>
 </peer>
 <peer>
-	<hostname>0.0.0.0</hostname>
+	<hostname>yinyee.local</hostname>
 	<port>5004</port>
+</peer>
+<peer>
+	<hostname>yinyee.local</hostname>
+	<port>5006</port>
 </peer>
 </peerlist>

@@ -2,16 +2,43 @@
 <block height="1">
 <header>
 <previousPoW>b1769976a749b969f3dd57ac31b302805a84665848600e57c756b1fad44a12d7</previousPoW>
-<pow>00c34517ab38e4727c4ffb1412673ad460374dda84f84c6038e5a65011d3289f</pow>
-<merkleRoot>6564eb5dd17a19234cd42a390548a1743a9e241c0c076f89b6fecefc172de5b7</merkleRoot>
-<nonce>530</nonce>
+<pow>0027068ef179a0d259acd071e153fc1721d45078baa3cf8581cc20db2630203b</pow>
+<merkleRoot>fed0294a0721e91f15b1631af81423bde71e7e86dceb13e9e61a6996cf1b34a8</merkleRoot>
+<nonce>32</nonce>
 <difficulty>00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff</difficulty>
 </header>
 <body>
 <transaction txID="1">
 <output outputID="1">
-<address>305c300d06092a864886f70d0101010500034b0030480241008843f2f1440e7abcbb20300639c6dfab14ade35352dcc67589ff74fb15aee034476035afecda5ad5d6f356d808ade2532216d6c6314390fcec11363c7f9cb18f0203010001</address>
+<address>a259daae613dcdb77a2700f4caf0566bf7a8528df0ac6f81000167def72f867b</address>
+<publicKey>305c300d06092a864886f70d0101010500034b0030480241009bcbafac1655adda104c81178118aa29953055ef147ca161bdbeb98c0fa0347304e2523009b8632bdf41c1bc538faa3ce4fc9498208056d8c1d3b436f6aeb38f0203010001</publicKey>
 <amount>50</amount>
+</output>
+</transaction>
+</body>
+</block>
+<block height="2">
+<header>
+<previousPoW>0027068ef179a0d259acd071e153fc1721d45078baa3cf8581cc20db2630203b</previousPoW>
+<pow>0035d7f287e4ddf361fe4ff70a1bda32283a3da34df238482738b370d474d052</pow>
+<merkleRoot>e22a0f2f2ef2d7d346191cce344bdaff53c374694b920cdf4514d22ba85cb891</merkleRoot>
+<nonce>1</nonce>
+<difficulty>00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff</difficulty>
+</header>
+<body>
+<transaction txID="1">
+<output outputID="1">
+<address>0e1b4a01a73fd1f80358d2e06ddbeb83ce72aaab5fd077f930753144e6f6a598</address>
+<publicKey>305c300d06092a864886f70d0101010500034b003048024100b60c69500cb9f75252756b822cb25ef3d86aea23ee134f18cc53006edc18cc085d3b7bf6e9ff74dbab2f0e53beee4e09a206ed4b95fd533e594dcf077d3fb1130203010001</publicKey>
+<amount>73</amount>
+</output>
+</transaction>
+<transaction txID="2">
+<input inputID="1">a259daae613dcdb77a2700f4caf0566bf7a8528df0ac6f81000167def72f867b</input>
+<output outputID="1">
+<address>59ed1e2d71a08374438fffe7144e3af298aa5ee249395687cc3f30bb7b50b87b</address>
+<publicKey>305c300d06092a864886f70d0101010500034b003048024100be27c7e2d82396b25aeb51015beea527e674d29fc3712fa453b8048056d1ccd55eaabc621d21666d9844e8f3e93827b98839f8ee8fedb97224aea94e94d9f70d0203010001</publicKey>
+<amount>27</amount>
 </output>
 </transaction>
 </body>

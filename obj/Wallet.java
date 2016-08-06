@@ -18,6 +18,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import util.BaseConverter;
+import util.SHA256;
 import util.XMLio;
 
 public class Wallet {
@@ -36,22 +37,24 @@ public class Wallet {
 		// Check if this key entry already exists
 		RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
 		byte[] encoded = publicKey.getEncoded();
-		
 		String value = BaseConverter.bytesDecToHex(encoded);
+		
+		SHA256 sha256 = new SHA256();
+		String address = sha256.hashString(value);
 		
 		NodeList keys = doc.getElementsByTagName("key");
 		
 		for (int i = 0; i < keys.getLength(); i++) {
 			
 			Node node = keys.item(i);
-			node = node.getFirstChild();						// public node
+			node = node.getFirstChild();							// address node
 			
-			if (node.getTextContent().compareTo(value) == 0) {	// if public key is a match
-				System.out.println("ugh");
-				node = node.getNextSibling().getNextSibling();	// private node
-				node = node.getNextSibling().getNextSibling();	// balance node
+			if (node.getTextContent().compareTo(address) == 0) {	// if address is a match
+				node = node.getNextSibling().getNextSibling();		// public node
+				node = node.getNextSibling().getNextSibling();		// private node
+				node = node.getNextSibling().getNextSibling();		// balance node
 				int sum = Integer.parseInt(node.getTextContent()) + Integer.parseInt(amount);
-				node.setTextContent(String.valueOf(sum));		// update balance
+				node.setTextContent(String.valueOf(sum));			// update balance
 				
 				return;
 			}
@@ -59,8 +62,13 @@ public class Wallet {
 		
 		Element key = doc.createElement("key");
 		
+		// Store address
+		Element element = doc.createElement("address");
+		element.setTextContent(address);
+		key.appendChild(element);
+		
 		// Store public key
-		Element element = doc.createElement("public");
+		element = doc.createElement("public");
 		element.setTextContent(value);
 		key.appendChild(element);
 		
@@ -82,18 +90,19 @@ public class Wallet {
 		XMLio.write(WALLET, doc, doc.getDocumentElement());
 	}
 	
-	public RSAPrivateCrtKey privateKey(String encodedPublicKeyInHex) throws NoSuchAlgorithmException, InvalidKeySpecException {
+	public RSAPrivateCrtKey privateKey(String address) throws NoSuchAlgorithmException, InvalidKeySpecException {
 		
-		NodeList publicKeys = doc.getElementsByTagName("public");
+		NodeList addresses = doc.getElementsByTagName("address");
 		
-		for (int i = 0; i < publicKeys.getLength(); i++) {
+		for (int i = 0; i < addresses.getLength(); i++) {
 			
-			Node pubNode = publicKeys.item(i);
+			Node add = addresses.item(i);
 			
-			if (pubNode.getTextContent().compareTo(encodedPublicKeyInHex) == 0) {
+			if (add.getTextContent().compareTo(address) == 0) {
 				
-				Node priNode = pubNode.getNextSibling().getNextSibling();
-				String hex = priNode.getTextContent();
+				Node node = add.getNextSibling().getNextSibling();	// publickey node
+				node = node.getNextSibling().getNextSibling();		// privatekey node
+				String hex = node.getTextContent();
 				
 				byte[] encoded = BaseConverter.stringHexToDec(hex);
 				PKCS8EncodedKeySpec encodedPrivateKeySpec = new PKCS8EncodedKeySpec(encoded);
@@ -108,17 +117,18 @@ public class Wallet {
 		return null;
 	}
 	
-	public void updateBalance(String encodedPublicKeyInHex, String amount) throws ParserConfigurationException, SAXException, IOException, TransformerException, URISyntaxException {
+	public void updateBalance(String address, String amount) throws ParserConfigurationException, SAXException, IOException, TransformerException, URISyntaxException {
 		
-		NodeList publicKeys = doc.getElementsByTagName("public");
+		NodeList addresses = doc.getElementsByTagName("address");
 		
-		for (int i = 0; i < publicKeys.getLength(); i++) {
+		for (int i = 0; i < addresses.getLength(); i++) {
 			
-			Node pubNode = publicKeys.item(i);
+			Node add = addresses.item(i);
 			
-			if (pubNode.getTextContent().compareTo(encodedPublicKeyInHex) == 0) {
+			if (add.getTextContent().compareTo(address) == 0) {
 				
-				Node node = pubNode.getNextSibling().getNextSibling();	// private node
+				Node node = add.getNextSibling().getNextSibling();		// publickey node
+				node = node.getNextSibling().getNextSibling();			// privatekey node
 				node = node.getNextSibling().getNextSibling();			// amount node
 				String balance = node.getTextContent();
 				
