@@ -1,7 +1,5 @@
 package obj;
 
-import java.net.URISyntaxException;
-import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
@@ -9,13 +7,12 @@ import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 
-import org.w3c.dom.DOMException;
-
+import obj.Input.InputException;
 import util.BaseConverter;
 import util.BlockExplorer;
-//import java.util.logging.Logger;
 import util.Signature;
 import util.UTXOExplorer;
+import util.UTXOExplorer.UTXOException;
 
 /**
  * A Transaction is constructed from a list of inputs and outputs.  Inputs reference unspent outputs
@@ -26,7 +23,8 @@ public class Transaction {
 	private ArrayList<Input> inputs;
 	private ArrayList<Output> outputs;
 	private byte[][] signatures;
-	private String transactionFee;
+	private int transactionFee;
+	private int txID;
 	
 	private String separator = " ";
 	
@@ -47,12 +45,16 @@ public class Transaction {
 		return signatures;
 	}
 	
-	public void initialiseSignatures(int size) {
-		signatures = new byte[size][];
+	public int transactionFee() {
+		return transactionFee;
 	}
 	
-	public String transactionFee() {
-		return transactionFee;
+	public String txID() {
+		return String.valueOf(txID);
+	}
+	
+	public void setTxID(int txID) {
+		this.txID = txID;
 	}
 	
 	/**
@@ -90,135 +92,214 @@ public class Transaction {
 	public void removeOutput(Output output) {
 		outputs.remove(output);
 	}
-
+	
 	/**
-	 * Finalizes the transaction by signing the inputs and outputs if the sum of input   
-	 * values is at least equal to the sum of output values.  Displays the transaction fee 
-	 * as the amount by which the value of inputs exceed the value of outputs.  
-	 * @throws TransactionInputsLessThanOutputsException Sum of inputs values cannot be less than sum of output values
-	 * @throws SignatureException 
-	 * @throws NoSuchAlgorithmException 
-	 * @throws InvalidKeyException 
-	 * @throws GeneralSecurityException 
-	 * @throws URISyntaxException 
+	 * Returns all the outputs as an array of bytes
+	 * @return outputs as an array of bytes
 	 */
-	public byte[][] finalise(BlockExplorer explorer) throws TransactionInputsLessThanOutputsException, InvalidKeyException, NoSuchAlgorithmException, SignatureException {
-		
-		int txFee = sumInputs(explorer) - sumOutputs();
-		transactionFee = String.valueOf(txFee);
-		
-		if (txFee >= 0) {
-		
-			byte[] outputsInBytes = getOutputsInBytes();
-			initialiseSignatures(inputs.size());
-			
-			for (int i = 0; i < inputs.size(); i++) signatures[i] = inputs.get(i).sign(outputsInBytes); 
-			
-			return signatures;
-			
-		} else throw new TransactionInputsLessThanOutputsException("Transaction failed to finalise");
-			
-	}
-	
-	public boolean validate(int transactionID, BlockExplorer blockExplorer, UTXOExplorer utxoExplorer) throws NoSuchAlgorithmException, InvalidKeySpecException, DOMException, InvalidKeyException, SignatureException {
-		
-		byte[] outputsInBytes = this.getOutputsInBytes();
-		
-		if (this.inputs.size() == 0) {
-			System.out.println("No inputs to this transaction");
-		}
-		
-		// For each input
-		for (int j = 0; j < this.inputs.size(); j++) {
-			
-			// Check UTXO list
-			Input input = this.inputs.get(j);
-			boolean validUTXO = utxoExplorer.valid(input);
-			System.out.println("Input " + (transactionID + 1) + "." + j + " is found in the utxo list: " + validUTXO);
-			if (!validUTXO) return false;
-			
-			// Check signature
-			TransactionReference reference = this.inputs.get(j).reference();
-			RSAPublicKey publicKey = blockExplorer.recipientPublicKey(reference);
-			
-			Signature signature = new Signature();
-			boolean validSignature = signature.verify(outputsInBytes, this.signatures[j], publicKey); 
-			System.out.println("Input " + (transactionID + 1) + "." + j + " signature is verified: " + validSignature);
-			if (!validSignature) return false;
-		}
-		
-		return true;
-	}
-	
 	public byte[] getOutputsInBytes() {
-		
 		StringBuilder str = new StringBuilder();
 		for (int i = 0; i < outputs.size(); i++) str.append(outputs.get(i).toString() + "\t");	
 		return str.toString().getBytes();
 	}
 	
+	/**
+	 * Initializes the array of signatures as a 1-based array i.e. index 0 
+	 * is always set to null.
+	 * @param size size of the signature array
+	 */
+	public void initialiseSignatures(int size) {
+		signatures = new byte[size][];
+		signatures[0] = null;
+	}
+
+	/**
+	 * Finalizes the transaction by signing the outputs if the sum of input values is at    
+	 * least equal to the sum of output values.  Displays the transaction fee as the  
+	 * amount by which the value of inputs exceed the value of outputs.
+	 * <p>Ordering of inputs and outputs is according to the order in which they were added
+	 * to their respective array lists.
+	 * <p>Note that the array list of inputs, the array list of outputs and the array of
+	 * signatures are <b>one unit larger</b> than the number of actual inputs, output and signatures.
+	 * This is because IDs are 1-based and to ensure that input and signature indices are aligned.
+	 * @param explorer block explorer
+	 * @param txID transaction ID
+	 * @return 2D byte array of signatures
+	 * @throws TransactionException 
+	 */
+	public void finalise(BlockExplorer blockExplorer, UTXOExplorer utxoExplorer) throws TransactionException {
+			
+		// Calculate transaction fee
+		transactionFee = calculateTransactionFee(blockExplorer);
+		
+		// Set output ID
+		for (int i = 0; i < outputs.size(); i++) outputs.get(i).setOutputID(i + 1);
+		byte[] outputsInBytes = getOutputsInBytes();
+		
+		/* Array of signatures is one larger than the number of inputs
+		 * so that the signature index is the same as the input index.
+		 * Index 0 of the signature array is null.
+		 */ 
+		initialiseSignatures(inputs.size() + 1);
+		signatures[0] = null;
+		
+		Input input;
+		boolean validUTXO = false;
+		
+		for (int i = 0; i < inputs.size(); i++) {
+			input = inputs.get(i);
+			
+			// Check against UTXO list
+			try {
+				validUTXO = utxoExplorer.valid(input);
+			} catch (UTXOException e) {
+				e.printStackTrace();
+			}
+			 
+			if (validUTXO) {
+				// Set input ID
+				input.setInputID(i + 1);
+				
+				// Sign outputs
+				try {
+					signatures[i + 1] = input.sign(outputsInBytes);
+				} catch (InputException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Checks the UTXO file to see if every input to the transaction is unspent and verifies that
+	 * every signature is valid.  The checks begin at index = 1.
+	 * @param blockExplorer block explorer
+	 * @param utxoExplorer UTXO explorer
+	 * @return true if every input is unspent and every signature verifies; false otherwise
+	 * @throws TransactionException 
+	 */
+	public boolean validate(BlockExplorer blockExplorer, UTXOExplorer utxoExplorer) throws TransactionException {
+		
+		if (inputs.size() == 0) {
+			System.out.println("No inputs to this transaction");
+			return true;
+		}
+		
+		Signature signature = new Signature();
+		RSAPublicKey publicKey;
+		byte[] outputsInBytes = getOutputsInBytes();
+		
+		Input input;
+		int inputID;
+		for (int i = 0; i < inputs.size(); i++) {
+			
+			input = inputs.get(i);
+			inputID = Integer.valueOf(input.inputID());
+			
+			// Check if valid UTXO
+			try {
+				utxoExplorer.valid(input);
+			} catch (UTXOException e) {
+				throw new TransactionException(e.getMessage());
+			}
+			
+			// Check signature
+			publicKey = blockExplorer.publicKey(input.reference());
+			try {
+				signature.verify(outputsInBytes, signatures[inputID], publicKey);
+			} catch (SignatureException | InvalidKeyException e) {
+				throw new TransactionException("Signature failed validation");
+			}
+		}
+		return true;
+	}
+	
+	/**
+	 * <b>This method should only be called after the transaction has been finalized.</b>
+	 * <p>Returns a string representation of the transaction.  Used to send transactions
+	 * from one network node to another hence the receiving network node must know how
+	 * to decode.
+	 */
 	public String toString() {
 		
 		StringBuilder str = new StringBuilder();
 		
+		str.append(txID + "#");
 		str.append(inputs.size() + "#");
 		str.append(outputs.size() + "#");
-			
-		for (Input input:inputs) {
+		
+		// Inputs
+		Input input;
+		for (int i = 0; i < inputs.size(); i++) {
+			input = inputs.get(i);
+			str.append(input.inputID() + separator);
 			str.append(input.reference().pow() + separator);
 			str.append(input.reference().transactionID() + separator);
-			str.append(input.reference().outputID() + separator);
+			str.append(input.reference().outputID() + "IN");
 		}
-		str.append(" IN ");
+		str.append("END");
 		
-		for (Output output:outputs) {
-			str.append(BaseConverter.bytesDecToHex(output.recipientPublicKey().getEncoded()) + separator);
-			str.append(output.amount() + separator);
+		// Outputs
+		Output output;
+		for (int i = 0; i < outputs.size(); i++) {
+			output = outputs.get(i);
+			str.append(output.outputID() + separator);
+			str.append(BaseConverter.bytesDecToHex(output.publicKey().getEncoded()) + separator);
+			str.append(output.amount() + "OUT");
 		}
-		str.append(" OUT ");
+		str.append("END");
 		
-		if (inputs.size() > 0) {
-			for (int i = 0; i < signatures.length; i++) str.append(BaseConverter.bytesDecToHex(signatures[i]) + separator); 
-		}
-		str.append(" TX ");
+		// Signatures
+		if (inputs.size() > 0)
+			for (int i = 0; i < inputs.size(); i++)
+				str.append(BaseConverter.bytesDecToHex(signatures[i + 1]) + "SIG"); 
+		
+		str.append("END");
+		str.append("TX");
 		
 		return str.toString();
 	}
-		
+	
 	@SuppressWarnings("serial") // TODO Serialize
-	public class TransactionInputsLessThanOutputsException extends Exception {
+	public class TransactionException extends Exception {
 		
-		public TransactionInputsLessThanOutputsException() {
+		public TransactionException() {
 			super();
 		}
 		
-		public TransactionInputsLessThanOutputsException(String msg) {
+		public TransactionException(String msg) {
 			super(msg);
 		}
-		
 	}
+	
+	/* -----------------------------------------------------------------
+	 * 							Private methods
+	 * -----------------------------------------------------------------
+	 */
 	
 	/*
-	 * Private methods
+	 * Calculates the transaction fee.
 	 */
-	private int sumInputs(BlockExplorer explorer) {
+	private int calculateTransactionFee(BlockExplorer blockExplorer) throws TransactionException {
 		
-		int sumInputs = 0;
+		TransactionReference reference;
+		Output output;
+		int sumInputs = 0, sumOutputs = 0, transactionFee;
 		
 		for (int i = 0; i < inputs.size(); i++) {
-			TransactionReference reference = inputs.get(i).reference();
-			sumInputs += Integer.parseInt(explorer.transactionAmount(reference));
+			reference = inputs.get(i).reference();
+			sumInputs += Integer.valueOf(blockExplorer.transactionAmount(reference));
 		}
 		
-		return sumInputs;
-	}
-	
-	private int sumOutputs() {
+		for (int j = 0 ; j < outputs.size(); j++) {
+			output = outputs.get(j);
+			sumOutputs += Integer.valueOf(output.amount());
+		}
 		
-		int sumOutputs = 0;	
-		for (int i = 0; i < outputs.size(); i++) sumOutputs += Integer.parseInt(outputs.get(i).amount());	
+		transactionFee = sumInputs - sumOutputs;
 		
-		return sumOutputs;
+		if (transactionFee < 0) throw new TransactionException("Negative transaction fee");
+		else return transactionFee;
 	}
-	
+		
 }

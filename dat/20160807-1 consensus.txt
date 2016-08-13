@@ -1,0 +1,53 @@
+7 Aug 2016, 2:06:34
+-----
+Height of dat/blockchain_0.0.0.0_5002.xml: 15
+Height of dat/blockchain_0.0.0.0_5003.xml: 10
+Longest match between 5002 and 5003: 5
+-----
+Height of dat/blockchain_0.0.0.0_5002.xml: 15
+Height of dat/blockchain_0.0.0.0_5004.xml: 10
+Longest match between 5002 and 5004: 3
+-----
+Height of dat/blockchain_0.0.0.0_5002.xml: 15
+Height of dat/blockchain_0.0.0.0_5006.xml: 10
+Longest match between 5002 and 5006: 5
+-----
+Height of dat/blockchain_0.0.0.0_5003.xml: 10
+Height of dat/blockchain_0.0.0.0_5002.xml: 15
+Longest match between 5003 and 5002: 5
+-----
+-----
+Height of dat/blockchain_0.0.0.0_5003.xml: 10
+Height of dat/blockchain_0.0.0.0_5004.xml: 10
+Longest match between 5003 and 5004: 3
+-----
+Height of dat/blockchain_0.0.0.0_5003.xml: 10
+Height of dat/blockchain_0.0.0.0_5006.xml: 10
+Longest match between 5003 and 5006: 10
+-----
+Height of dat/blockchain_0.0.0.0_5004.xml: 10
+Height of dat/blockchain_0.0.0.0_5002.xml: 15
+Longest match between 5004 and 5002: 3
+-----
+Height of dat/blockchain_0.0.0.0_5004.xml: 10
+Height of dat/blockchain_0.0.0.0_5003.xml: 10
+Longest match between 5004 and 5003: 3
+-----
+-----
+Height of dat/blockchain_0.0.0.0_5004.xml: 10
+Height of dat/blockchain_0.0.0.0_5006.xml: 10
+Longest match between 5004 and 5006: 3
+-----
+Height of dat/blockchain_0.0.0.0_5006.xml: 10
+Height of dat/blockchain_0.0.0.0_5002.xml: 15
+Longest match between 5006 and 5002: 5
+-----
+Height of dat/blockchain_0.0.0.0_5006.xml: 10
+Height of dat/blockchain_0.0.0.0_5003.xml: 10
+Longest match between 5006 and 5003: 10
+-----
+Height of dat/blockchain_0.0.0.0_5006.xml: 10
+Height of dat/blockchain_0.0.0.0_5004.xml: 10
+Longest match between 5006 and 5004: 3
+-----
+-----

@@ -9,9 +9,4 @@
 <txID>2</txID>
 <outputID>1</outputID>
 </utxo>
-<utxo>
-<pow>00007190d2cd5cb7ae83bb32933ff000d4ca9073b06b63451d3f2415b6d09cd6</pow>
-<txID>1</txID>
-<outputID>1</outputID>
-</utxo>
 </list>

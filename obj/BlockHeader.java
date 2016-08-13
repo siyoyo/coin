@@ -1,7 +1,5 @@
 package obj;
 
-import java.security.NoSuchAlgorithmException;
-
 import util.SHA256;
 
 /**
@@ -34,28 +32,16 @@ public class BlockHeader {
 		String result = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 		nonce = -1;
 		
-		while (result.compareTo(this.difficulty) > 0) {
-			
-			try {
-				System.out.print(++nonce + "\t");
-				result = tryNonce(nonce);
-				System.out.println(result);
-				
-			} catch (NoSuchAlgorithmException e) {
-				e.printStackTrace();
-			}
-			
-		}
+		while (result.compareTo(this.difficulty) > 0) result = tryNonce(++nonce);
 		
+		System.out.println(nonce + "\t" + result);
 		return result;
 	}
 	
-	public boolean checkHash(String pow) throws NoSuchAlgorithmException {
-		
+	public boolean checkHash(String pow) throws BlockHeaderException {
 		String result = tryNonce(nonce);
-		
 		if (result.compareTo(pow) == 0) return true;
-		else return false;
+		else throw new BlockHeaderException("Invalid proof-of-work");
 	}
 	
 	public String previousPoW() {
@@ -82,8 +68,24 @@ public class BlockHeader {
 		this.difficulty = difficulty;
 	}
 	
-	private String tryNonce(int nonce) throws NoSuchAlgorithmException {
+	@SuppressWarnings("serial") // TODO
+	public class BlockHeaderException extends Exception {
 		
+		public BlockHeaderException() {
+			super();
+		}
+		
+		public BlockHeaderException(String msg) {
+			super(msg);
+		}
+	}
+	
+	/* -----------------------------------------------------------------
+	 * 							Private methods
+	 * -----------------------------------------------------------------
+	 */
+	
+	private String tryNonce(int nonce) {
 		SHA256 sha256 = new SHA256();
 		String hash = sha256.hashString(previousPoW + merkleRoot + String.valueOf(nonce));
 		return hash;

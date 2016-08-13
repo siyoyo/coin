@@ -16,8 +16,12 @@ public class SHA256 {
 	private final static String HASH_ALGORITHM = "SHA-256";
 	private MessageDigest md;
 	
-	public SHA256() throws NoSuchAlgorithmException {
-		md = MessageDigest.getInstance(HASH_ALGORITHM);
+	public SHA256() {
+		try {
+			md = MessageDigest.getInstance(HASH_ALGORITHM);
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	/**

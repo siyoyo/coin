@@ -1,8 +1,6 @@
 package obj;
 
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SignatureException;
+import java.security.GeneralSecurityException;
 import java.security.interfaces.RSAPrivateCrtKey;
 
 import util.Signature;
@@ -17,6 +15,7 @@ public class Input {
 	
 	private TransactionReference reference;
 	private RSAPrivateCrtKey senderPrivateKey;
+	private int inputID;
 	
 	public Input(TransactionReference reference) {
 		this.reference = reference;
@@ -30,12 +29,37 @@ public class Input {
 	public TransactionReference reference() {
 		return reference;
 	}
-
-	public byte[] sign(byte[] outputsInBytes) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
-		
-		Signature signature = new Signature();
-		return signature.sign(outputsInBytes, senderPrivateKey);
-		
+	
+	public String inputID() {
+		return String.valueOf(inputID);
 	}
 	
+	public void setInputID(int inputID) {
+		this.inputID = inputID;
+	}
+
+	public byte[] sign(byte[] outputsInBytes) throws InputException {
+		Signature signature = new Signature();
+		
+		byte[] signBytes;
+		try {
+			signBytes = signature.sign(outputsInBytes, senderPrivateKey);
+		} catch (GeneralSecurityException e) {
+			throw new InputException(e.getMessage());
+		}
+		return signBytes;
+	}
+	
+	@SuppressWarnings("serial") // TODO
+	public class InputException extends Exception {
+		
+		public InputException() {
+			super();
+		}
+		
+		public InputException(String msg) {
+			super(msg);
+		}
+		
+	}
 }

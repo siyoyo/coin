@@ -1,7 +1,5 @@
 package test;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -10,13 +8,6 @@ import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.interfaces.RSAPrivateCrtKey;
-import java.security.spec.InvalidKeySpecException;
-
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.TransformerException;
-
-import org.xml.sax.SAXException;
-
 import obj.Wallet;
 import util.BaseConverter;
 
@@ -50,18 +41,6 @@ public class WalletRunTest {
 			System.out.println(signature.verify(signBytes));
 			
 		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (ParserConfigurationException e) {
-			e.printStackTrace();
-		} catch (SAXException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (TransformerException e) {
-			e.printStackTrace();
-		} catch (InvalidKeySpecException e) {
 			e.printStackTrace();
 		} catch (SignatureException e) {
 			e.printStackTrace();

@@ -1,190 +1,60 @@
 <?xml version="1.0" encoding="UTF-8"?><blockchain>
-<block height="1">
-<header>
-<previousPoW>b1769976a749b969f3dd57ac31b302805a84665848600e57c756b1fad44a12d7</previousPoW>
-<pow>0027068ef179a0d259acd071e153fc1721d45078baa3cf8581cc20db2630203b</pow>
-<merkleRoot>fed0294a0721e91f15b1631af81423bde71e7e86dceb13e9e61a6996cf1b34a8</merkleRoot>
-<nonce>32</nonce>
-<difficulty>00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff</difficulty>
-</header>
-<body>
-<transaction txID="1">
-<output outputID="1">
-<address>a259daae613dcdb77a2700f4caf0566bf7a8528df0ac6f81000167def72f867b</address>
-<publicKey>305c300d06092a864886f70d0101010500034b0030480241009bcbafac1655adda104c81178118aa29953055ef147ca161bdbeb98c0fa0347304e2523009b8632bdf41c1bc538faa3ce4fc9498208056d8c1d3b436f6aeb38f0203010001</publicKey>
-<amount>50</amount>
-</output>
-</transaction>
-</body>
+<block>
+	<height>1</height>
+	<header>
+		<previousPoW>b1769976a749b969f3dd57ac31b302805a84665848600e57c756b1fad44a12d7</previousPoW>
+		<pow>0027068ef179a0d259acd071e153fc1721d45078baa3cf8581cc20db2630203b</pow>
+		<merkleRoot>fed0294a0721e91f15b1631af81423bde71e7e86dceb13e9e61a6996cf1b34a8</merkleRoot>
+		<nonce>32</nonce>
+		<difficulty>00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff</difficulty>
+	</header>
+	<body>
+		<transaction>
+			<txID>1</txID>
+			<output>
+				<outputID>1</outputID>
+				<outputAddress>a259daae613dcdb77a2700f4caf0566bf7a8528df0ac6f81000167def72f867b</outputAddress>
+				<publicKey>305c300d06092a864886f70d0101010500034b0030480241009bcbafac1655adda104c81178118aa29953055ef147ca161bdbeb98c0fa0347304e2523009b8632bdf41c1bc538faa3ce4fc9498208056d8c1d3b436f6aeb38f0203010001</publicKey>
+				<amount>50</amount>
+			</output>
+		</transaction>
+	</body>
 </block>
-<block height="2">
-<header>
-<previousPoW>0027068ef179a0d259acd071e153fc1721d45078baa3cf8581cc20db2630203b</previousPoW>
-<pow>0035d7f287e4ddf361fe4ff70a1bda32283a3da34df238482738b370d474d052</pow>
-<merkleRoot>e22a0f2f2ef2d7d346191cce344bdaff53c374694b920cdf4514d22ba85cb891</merkleRoot>
-<nonce>1</nonce>
-<difficulty>00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff</difficulty>
-</header>
-<body>
-<transaction txID="1">
-<output outputID="1">
-<address>0e1b4a01a73fd1f80358d2e06ddbeb83ce72aaab5fd077f930753144e6f6a598</address>
-<publicKey>305c300d06092a864886f70d0101010500034b003048024100b60c69500cb9f75252756b822cb25ef3d86aea23ee134f18cc53006edc18cc085d3b7bf6e9ff74dbab2f0e53beee4e09a206ed4b95fd533e594dcf077d3fb1130203010001</publicKey>
-<amount>73</amount>
-</output>
-</transaction>
-<transaction txID="2">
-<input inputID="1">a259daae613dcdb77a2700f4caf0566bf7a8528df0ac6f81000167def72f867b</input>
-<output outputID="1">
-<address>59ed1e2d71a08374438fffe7144e3af298aa5ee249395687cc3f30bb7b50b87b</address>
-<publicKey>305c300d06092a864886f70d0101010500034b003048024100be27c7e2d82396b25aeb51015beea527e674d29fc3712fa453b8048056d1ccd55eaabc621d21666d9844e8f3e93827b98839f8ee8fedb97224aea94e94d9f70d0203010001</publicKey>
-<amount>27</amount>
-</output>
-</transaction>
-</body>
-</block>
-<block height="3">
-<header>
-<previousPoW>0035d7f287e4ddf361fe4ff70a1bda32283a3da34df238482738b370d474d052</previousPoW>
-<pow>00000aef56731a9bebf405fe50e0f381767801e7f23dea7e0e5137d0a5c2b915</pow>
-<merkleRoot>294b5b52d309628acbf1b0cb42c44a04e9c7c2658017d04b386220e958e95e83</merkleRoot>
-<nonce>57059</nonce>
-<difficulty>00008fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff</difficulty>
-</header>
-<body>
-<transaction txID="1">
-<output outputID="1">
-<address>15efa879cd7f566f72e5079045d956ca90cbc89152befd1fbf62eae940249c09</address>
-<publicKey>305c300d06092a864886f70d0101010500034b0030480241008c2b1a649e46b1b0a873e99070d22e5559a9039e70c20d1a90ed06b91e10ccd8b878847845e4e99c7fc25a10efb414d5aca529c94712969d77aecdbbaa9d901f0203010001</publicKey>
-<amount>50</amount>
-</output>
-</transaction>
-</body>
-</block>
-<block height="4">
-<header>
-<previousPoW>00000aef56731a9bebf405fe50e0f381767801e7f23dea7e0e5137d0a5c2b915</previousPoW>
-<pow>00003d03519620d81ee6cd4889d18a2ec7732abfa3684101be0c0e3e6914ea72</pow>
-<merkleRoot>57e5bac3efcabd13caa32fde0a9b5ef74ff7a32c4fbceff855384051d7e29a2b</merkleRoot>
-<nonce>44760</nonce>
-<difficulty>00008fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff</difficulty>
-</header>
-<body>
-<transaction txID="1">
-<output outputID="1">
-<address>a0f426b832e88f12d435d19e3c9e6317cf71f232746a0681de3e9514f30eeb73</address>
-<publicKey>305c300d06092a864886f70d0101010500034b0030480241008603490de76b73f45215f3c336c70e9a07a74a3b689fb89476268d65204407f447f5c1b44fa97f73a199d95f08d01e09b567da923bd0c3cd960ba975f223becd0203010001</publicKey>
-<amount>50</amount>
-</output>
-</transaction>
-</body>
-</block>
-<block height="5">
-<header>
-<previousPoW>00003d03519620d81ee6cd4889d18a2ec7732abfa3684101be0c0e3e6914ea72</previousPoW>
-<pow>0000455b31d2eb16475547ebea529ddfd6743d39cd455651559af5a24af709e1</pow>
-<merkleRoot>a6b38d9cd002809a2d43b505890922eb8f842de331597f2885df1248a9086afc</merkleRoot>
-<nonce>45548</nonce>
-<difficulty>00008fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff</difficulty>
-</header>
-<body>
-<transaction txID="1">
-<output outputID="1">
-<address>db6d70fc30ac323ae0328c638417ddac8c0129b515c2068a1ccfb4df0d304005</address>
-<publicKey>305c300d06092a864886f70d0101010500034b003048024100b658938e193f0902732b0f9260fb7053f686bb81db83684746fa5706a618e63466547667583abcd8b39200702d7269b838f18df2159012c7aa224cf3054fb04f0203010001</publicKey>
-<amount>50</amount>
-</output>
-</transaction>
-</body>
-</block>
-<block height="6">
-<header>
-<previousPoW>0000455b31d2eb16475547ebea529ddfd6743d39cd455651559af5a24af709e1</previousPoW>
-<pow>00001b86b4bae0587de8de396fb96a81190fadc879dd9f1efc64ae80bb4b5139</pow>
-<merkleRoot>8d95c1fd88073322d235abf3077d9e4d0dc70a96a17b62f2a43772ad6bf31e5c</merkleRoot>
-<nonce>272136</nonce>
-<difficulty>00008fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff</difficulty>
-</header>
-<body>
-<transaction txID="1">
-<output outputID="1">
-<address>fe6e6e9424bc2bb89c1a6c49fc149af5862369a10ba086cf55bc9105e74f74f3</address>
-<publicKey>305c300d06092a864886f70d0101010500034b00304802410081542c186ca642f75a5f96eb8bfd6b3f59c56442c94e2e3526ebe14d919d828aa99f7092ab8189882e5e644d84d0895b134f35ddb2763efe0ec178dd395d70d50203010001</publicKey>
-<amount>50</amount>
-</output>
-</transaction>
-</body>
-</block>
-<block height="7">
-<header>
-<previousPoW>00001b86b4bae0587de8de396fb96a81190fadc879dd9f1efc64ae80bb4b5139</previousPoW>
-<pow>000004a8f0921529eae2122e5b04317acc70db2524ce2a0735806bbe0cc9ad55</pow>
-<merkleRoot>0529ee3bddc30fd7b65ff750b2e707d1c50eb30c72032abe81ea9024f33ebe30</merkleRoot>
-<nonce>182206</nonce>
-<difficulty>00008fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff</difficulty>
-</header>
-<body>
-<transaction txID="1">
-<output outputID="1">
-<address>98a1bfc83d2bff0f54256d5bacd0cebbe94592734f49dd39d53f55b0c43582c1</address>
-<publicKey>305c300d06092a864886f70d0101010500034b003048024100caaed95c42f8413018da898d4f55923e3c52cd32f58d90baa1b0149ecaf1477f1b251fcc8b74069b446b245a7ef5216162d07fc51771c6bee86f54b4a561df410203010001</publicKey>
-<amount>50</amount>
-</output>
-</transaction>
-</body>
-</block>
-<block height="8">
-<header>
-<previousPoW>000004a8f0921529eae2122e5b04317acc70db2524ce2a0735806bbe0cc9ad55</previousPoW>
-<pow>000022678e73c484a20505ed1df4a929c9a14922b776ec9b4de3b7afe9c76b0d</pow>
-<merkleRoot>f486d77d59a5e39009e62b8c649c27df0db8ae017b85d2228b626b6b8d49edae</merkleRoot>
-<nonce>280371</nonce>
-<difficulty>00008fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff</difficulty>
-</header>
-<body>
-<transaction txID="1">
-<output outputID="1">
-<address>23f3302a46329a4304704476d7bb1d305dffa5a754f90548eba43ad686304133</address>
-<publicKey>305c300d06092a864886f70d0101010500034b003048024100a584819863c279ba60f5c32fcee8e35a2394fc6f4ee5a4432cefa12bf1f48ef939fccc6ff8fc2ee57f1aa97932ba75794f449b2d5af1b325fb659e9ec3bc62150203010001</publicKey>
-<amount>50</amount>
-</output>
-</transaction>
-</body>
-</block>
-<block height="9">
-<header>
-<previousPoW>000022678e73c484a20505ed1df4a929c9a14922b776ec9b4de3b7afe9c76b0d</previousPoW>
-<pow>00007c1ade0aacf8fd4a605a2fce087d3778e5eae07fc02feefadf68d64466db</pow>
-<merkleRoot>df15607485a44ef59cb24feb1b292e9bcd034c072ec9eede582b1c9f1671afe4</merkleRoot>
-<nonce>3469</nonce>
-<difficulty>00008fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff</difficulty>
-</header>
-<body>
-<transaction txID="1">
-<output outputID="1">
-<address>1b463d8eb93b2baf45cce593f0a3ef9df8fe69a3a1e69748bb57e695fc7a50a7</address>
-<publicKey>305c300d06092a864886f70d0101010500034b00304802410094531996eb8d477decfb2019a2dd09279d847ba7a301584bc78932bd5f652324d71a09ab322a36d472fb5b7840f2a844e2ae357ac23f581ae027d8b8265092030203010001</publicKey>
-<amount>50</amount>
-</output>
-</transaction>
-</body>
-</block>
-<block height="10">
-<header>
-<previousPoW>00007c1ade0aacf8fd4a605a2fce087d3778e5eae07fc02feefadf68d64466db</previousPoW>
-<pow>00001441842ad15d515cc74c521fc3d8aeccc24d3242dee51d31e035e53e1471</pow>
-<merkleRoot>6120854a0437d4c0cc5d87d01bf1e493fca3332e02c6fbb0e3293f1e0fe6c148</merkleRoot>
-<nonce>186720</nonce>
-<difficulty>00008fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff</difficulty>
-</header>
-<body>
-<transaction txID="1">
-<output outputID="1">
-<address>d13dbb02d95dc4e7cf5e3d55c9c5b53a646065f7298a952dfe70185720fc4402</address>
-<publicKey>305c300d06092a864886f70d0101010500034b003048024100e50b6275a8a6b29b3d971deaccd1b7a3548b4e32ed5336e939bb6ee947fe7ed64c73a890c8cded1c8b349781ea238300662e002371a10b645b9b95fcb9d26aff0203010001</publicKey>
-<amount>50</amount>
-</output>
-</transaction>
-</body>
+<block>
+	<height>2</height>
+	<header>
+		<previousPoW>0027068ef179a0d259acd071e153fc1721d45078baa3cf8581cc20db2630203b</previousPoW>
+		<pow>0035d7f287e4ddf361fe4ff70a1bda32283a3da34df238482738b370d474d052</pow>
+		<merkleRoot>e22a0f2f2ef2d7d346191cce344bdaff53c374694b920cdf4514d22ba85cb891</merkleRoot>
+		<nonce>1</nonce>
+		<difficulty>00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff</difficulty>
+	</header>
+	<body>
+		<transaction>
+			<txID>1</txID>
+			<output>
+				<outputID>1</outputID>
+				<outputAddress>0e1b4a01a73fd1f80358d2e06ddbeb83ce72aaab5fd077f930753144e6f6a598</outputAddress>
+				<publicKey>305c300d06092a864886f70d0101010500034b003048024100b60c69500cb9f75252756b822cb25ef3d86aea23ee134f18cc53006edc18cc085d3b7bf6e9ff74dbab2f0e53beee4e09a206ed4b95fd533e594dcf077d3fb1130203010001</publicKey>
+				<amount>73</amount>
+			</output>
+		</transaction>
+		<transaction>
+			<txID>2</txID>
+			<input>
+				<inputID>1</inputID>
+				<inputAddress>a259daae613dcdb77a2700f4caf0566bf7a8528df0ac6f81000167def72f867b</inputAddress>
+				<refPoW>0027068ef179a0d259acd071e153fc1721d45078baa3cf8581cc20db2630203b</refPoW>
+				<refTx>1</refTx>
+				<refOut>1</refOut>
+			</input>
+			<output>
+				<outputID>1</outputID>
+				<outputAddress>59ed1e2d71a08374438fffe7144e3af298aa5ee249395687cc3f30bb7b50b87b</outputAddress>
+				<publicKey>305c300d06092a864886f70d0101010500034b003048024100be27c7e2d82396b25aeb51015beea527e674d29fc3712fa453b8048056d1ccd55eaabc621d21666d9844e8f3e93827b98839f8ee8fedb97224aea94e94d9f70d0203010001</publicKey>
+				<amount>27</amount>
+			</output>
+		</transaction>
+	</body>
 </block>
 </blockchain>

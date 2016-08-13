@@ -1,14 +1,7 @@
 package util;
 
-import java.security.GeneralSecurityException;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-//import java.util.logging.Logger;
-
 import obj.Transaction;
-import obj.Transaction.TransactionInputsLessThanOutputsException;
 
 /**
  * A utility which uses SHA-256 to generate the root of a Merkle tree given a list of transactions. <br>
@@ -21,90 +14,115 @@ import obj.Transaction.TransactionInputsLessThanOutputsException;
  */
 public class MerkleTree {
 	
-//	private Logger logger = Logger.getLogger(MerkleTree.class.getName());	// TODO
-	private ArrayList<Transaction> orderedTransactions;
+	/**
+	 * Returns the hash of the root of the Merkle tree built using the transactions provided.
+	 * @param transactions array list of transactions
+	 * @return root of the Merkle tree of transactions, including the mint transaction
+	 */
+	public static String getRoot(ArrayList<Transaction> transactions) {
+		int numberOfLeaves = countLeaves(transactions.size());	
+		return buildTree(transactions, numberOfLeaves);
+	}
 	
 	/**
-	 * TODO
+	 * Checks if the Merkle tree root corresponds to the transactions
 	 * @param transactions
-	 * @return
-	 * @throws GeneralSecurityException 
-	 * @throws TransactionInputsLessThanOutputsException 
-	 * @throws ValidationFailureException 
+	 * @param root Merkle tree root
+	 * @return true if the provided root matches the root from the reconstructed Merkle tree
+	 * @throws MerkleTreeException
 	 */
-	public String getRoot(BlockExplorer explorer, Transaction mint, ArrayList<Transaction> transactions) throws TransactionInputsLessThanOutputsException, GeneralSecurityException {
-		
-		String root = null;
-		
-		orderTransactions(transactions);
-		orderedTransactions = transactions;	
-		orderedTransactions.add(0, mint);				// Mint transaction is the first transaction
-		int numberOfLeaves = countLeaves(transactions);	// Number of leaves must be a power of 2
-		root = buildTree(transactions, numberOfLeaves);
-		
-		return root;
+	public static boolean validateRoot(ArrayList<Transaction> transactions, String root) throws MerkleTreeException {
+		String rebuiltRoot = getRoot(transactions);
+		if (rebuiltRoot.compareTo(root) == 0) return true;
+		else throw new MerkleTreeException("Root does not match transactions");
 	}
 
-	public ArrayList<Transaction> orderedTransactions() {
-		return orderedTransactions;
+	@SuppressWarnings("serial") // TODO
+	public static class MerkleTreeException extends Exception {
+		
+		public MerkleTreeException() {
+			super();
+		}
+		
+		public MerkleTreeException(String msg) {
+			super(msg);
+		}
 	}
+	
+	/* -----------------------------------------------------------------
+	 * 							Private methods
+	 * -----------------------------------------------------------------
+	 */
 	
 	/*
-	 * Private methods
+	 * Returns the minimum number of leaves that is larger than the number of transactions,
+	 * with the condition that the number of leaves must be a power of two.
 	 */
-	private void orderTransactions(ArrayList<Transaction> transactions) {
-		
-		Collections.sort(transactions, new Comparator<Transaction>() {
-
-			@Override
-			public int compare(Transaction tx1, Transaction tx2) {
-				String str1 = tx1.toString();
-				String str2 = tx2.toString();
-				return str1.compareTo(str2);
-			}
-			
-		});
-	}
-	
-	private int countLeaves(ArrayList<Transaction> transactions) {		
-		
-		int powerOfTwo = 1;
-		while (Math.pow(2, powerOfTwo) < transactions.size()) powerOfTwo++;
-		
+	private static int countLeaves(int numberOfTransactions) {		
+		int powerOfTwo = 0;
+		while (Math.pow(2, powerOfTwo) < numberOfTransactions) powerOfTwo++;
 		return (int) Math.pow(2, powerOfTwo);
 	}
 	
-	private String buildTree(ArrayList<Transaction> transactions, int numberOfLeaves) throws NoSuchAlgorithmException {
+	/*
+	 * Returns the root of the Merkle tree.  ***Note that the array list of hashes is 0-based.***
+	 */
+	private static String buildTree(ArrayList<Transaction> transactions, int numberOfLeaves) {
+		
+		int numberOfTransactions = transactions.size();
+		String txAsString;
 		
 		SHA256 sha256 = new SHA256();
-		
 		ArrayList<String> hashes = new ArrayList<String>();
-		String hash;
-		int i;
-		for (i = 0; i < transactions.size(); i++) {
-			hash = sha256.hashString(transactions.get(i).toString()); 
+		String hash = null;
+		
+		// Set transaction ID
+		for (int i = 0; i < numberOfTransactions; i++) transactions.get(i).setTxID(i + 1); 
+		
+		// Get hash of transaction string
+		String[] txsAsString = getTransactionsAsStringArray(transactions);
+		for (int j = 0; j < txsAsString.length; j ++) {
+			txAsString = txsAsString[j];
+			hash = sha256.hashString(txAsString); 
 			hashes.add(hash);
 		}
+			
+		// Add the last real transaction leaf to the tree until there are enough total leaves 
+		for (int leaf = numberOfTransactions; leaf <= numberOfLeaves; leaf++) hashes.add(hash);
 		
-		for (int j = i; j < numberOfLeaves; j++) {
-			hash = sha256.hashString(transactions.get(i - 1).toString());
-			hashes.add(hash);
-		}
-		
-		while (hashes.size() > 1) {
-			hashes = combine(hashes);
-		}
+		while (hashes.size() > 1) hashes = fold(sha256, hashes);
 		
 		return hashes.get(0);
 	}
 	
-	private ArrayList<String> combine(ArrayList<String> hashes) throws NoSuchAlgorithmException {
+	/*
+	 * Ensures that the transactions are ordered according to their transaction IDs.
+	 */
+	private static String[] getTransactionsAsStringArray(ArrayList<Transaction> transactions) {
 		
-		SHA256 sha256 = new SHA256();
+		int numberOfTransactions = transactions.size();
+		String[] txArray = new String[numberOfTransactions];
+		
+		Transaction transaction;
+		int transactionID;
+		
+		for (int i = 0; i < numberOfTransactions; i++) {
+			transaction = transactions.get(i);
+			transactionID = Integer.valueOf(transaction.txID());
+			txArray[transactionID - 1] = transaction.toString();
+		}
+		
+		return txArray;
+	}
+	
+	/*
+	 * Folds each level of the tree into half.
+	 */
+	private static ArrayList<String> fold(SHA256 sha256, ArrayList<String> hashes) {
+		
 		ArrayList<String> results = new ArrayList<String>();
 		
 		int i = 0;
-		
 		while (i < hashes.size()) {
 			String concat = hashes.get(i) + hashes.get(i + 1);
 			String result = sha256.hashString(concat);

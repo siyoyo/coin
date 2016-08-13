@@ -12,12 +12,15 @@ public class Signature {
 	public final static String SIGNATURE_ALGORITHM = "SHA256withRSA";
 	private java.security.Signature signature;
 	
-	public Signature() throws NoSuchAlgorithmException {
-		signature = java.security.Signature.getInstance(SIGNATURE_ALGORITHM);
+	public Signature() {
+		try {
+			signature = java.security.Signature.getInstance(SIGNATURE_ALGORITHM);
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		}
 	}
 	
-	
-	public byte[] sign(byte[] outputsInBytes, RSAPrivateCrtKey privateKey) throws InvalidKeyException, SignatureException {	
+	public byte[] sign(byte[] outputsInBytes, RSAPrivateCrtKey privateKey) throws InvalidKeyException, SignatureException {
 		signature.initSign(privateKey, new SecureRandom());
 		signature.update(outputsInBytes);
 		return signature.sign();

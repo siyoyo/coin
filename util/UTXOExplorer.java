@@ -1,21 +1,11 @@
 package util;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.TransformerException;
-
-import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
-
 import obj.Block;
 import obj.Input;
 import obj.Output;
@@ -26,98 +16,148 @@ public class UTXOExplorer {
 	
 	private String filename;
 	private Document doc;
-	private NodeList utxos;
 	
-	public UTXOExplorer(String filename) throws ParserConfigurationException, SAXException, IOException, URISyntaxException {
+	public UTXOExplorer(String filename) {
 		this.filename = filename;
 		doc = XMLio.parse(filename);
 		doc.getDocumentElement().normalize();
-		utxos = doc.getElementsByTagName("utxo");
 	}
 
-	public boolean valid(Input input) throws NoSuchAlgorithmException, InvalidKeySpecException, DOMException {
-		
-		TransactionReference reference = input.reference();
-		
-		for (int i = 0; i <utxos.getLength(); i++) {
-			
-			Node utxo = utxos.item(i);
-			
-			Node node = utxo.getFirstChild().getNextSibling();		// pow node
-			String pow = node.getTextContent();
-			
-			node = node.getNextSibling().getNextSibling();			// txID node
-			String txID = node.getTextContent();
-			
-			node = node.getNextSibling().getNextSibling();			// outputID node
-			String outputID = node.getTextContent();
-			
-			if (pow.compareTo(reference.pow()) == 0 &
-					txID.compareTo(reference.transactionID()) == 0 &
-					outputID.compareTo(reference.outputID()) == 0) return true;
-		}
-		
-		return false;
+	/**
+	 * Checks the input against the UTXO list.
+	 * @param input input
+	 * @return true if the input is found in the UTXO list; false otherwise
+	 * @throws UTXOException 
+	 */
+	public boolean valid(Input input) throws UTXOException {
+		Node utxoNode = getUTXONode(input.reference());
+		if (utxoNode != null) return true;
+		else throw new UTXOException("Input not found in UTXO list");
 	}
 	
-	public void update(Block block) throws ParserConfigurationException, SAXException, IOException, TransformerException, URISyntaxException {
+	/**
+	 * Updates the file containing the list of unspent transaction outputs by removing
+	 * spent inputs and creating new unspent outputs.
+	 * <b>This method should only be called on a finalized block</b> as it assumes all
+	 * arrays are 1-based.
+	 * @param finalisedBlock finalized block
+	 */
+	public void update(Block finalisedBlock) {
 		
-		ArrayList<Transaction> transactions = block.transactions();
+		ArrayList<Transaction> transactions = finalisedBlock.transactions();
+		int numberOfTransactions = transactions.size();
+		int numberOfInputs, numberOfOutputs;
 		
-		// Remove used UTXOs
-		for (int i = 0; i < transactions.size(); i++) {
-			ArrayList<Input> inputs = transactions.get(i).inputs();
+		Transaction transaction;
+		ArrayList<Input> inputs;
+		ArrayList<Output> outputs;
+		
+		TransactionReference reference;
+		Input input;
+		Output output;
+		
+		Node utxoNode, powNode, txIDNode, outputIDNode;
+		
+		for (int i = 0; i < numberOfTransactions; i++) {
 			
-			for (int j = 0; j < inputs.size(); j++) {
-				TransactionReference reference = inputs.get(j).reference();
+			transaction = transactions.get(i);
+			
+			// Remove used UTXOs i.e. spent inputs
+			inputs = transaction.inputs();
+			numberOfInputs = inputs.size();
+			
+			for (int j = 0; j < numberOfInputs; j++) {
+				input = inputs.get(j);
+				reference = input.reference();
+				utxoNode = getUTXONode(reference);
+				doc.removeChild(utxoNode);
+			}
+		
+			// Create new UTXOs from outputs
+			outputs = transaction.outputs();
+			numberOfOutputs = outputs.size();
+			
+			for (int k = 0; k < numberOfOutputs; k++) {
+				output = outputs.get(k);
+				utxoNode = doc.createElement("utxo");
 				
-				for (int k = 0; k < utxos.getLength(); k++) {
+				powNode = doc.createElement("pow");
+				powNode.setTextContent(finalisedBlock.pow());
+				utxoNode.appendChild(powNode);
+				
+				txIDNode = doc.createElement("txID");
+				txIDNode.setTextContent(transaction.txID());
+				utxoNode.appendChild(txIDNode);
+				
+				outputIDNode = doc.createElement("outputID");
+				outputIDNode.setTextContent(output.outputID());
+				utxoNode.appendChild(outputIDNode);
+				
+				doc.getDocumentElement().appendChild(utxoNode);
+			}
+		}
+		XMLio.write(filename, doc, doc.getDocumentElement());
+	}
+	
+	@SuppressWarnings("serial")
+	public class UTXOException extends Exception {
+		
+		public UTXOException() {
+			super();
+		}
+		
+		public UTXOException(String msg) {
+			super(msg);
+		}
+	}
+	
+	/* -----------------------------------------------------------------
+	 * 							Private methods
+	 * -----------------------------------------------------------------
+	 */
+	
+	/*
+	 * Returns the UXTO node that matches the given transaction reference.
+	 */
+	private Node getUTXONode(TransactionReference reference) {
+		
+		NodeList utxoNodes = doc.getElementsByTagName("utxo");
+		Node utxoNode, powNode, txIDNode, outputIDNode;
+		
+		String pow, txID, outputID;
+		
+		for (int i = 0; i < utxoNodes.getLength(); i++) {
+			
+			utxoNode = utxoNodes.item(i);
+
+			// Check proof-of-work
+			powNode = getDescendantNode(utxoNode, "pow");
+			pow = powNode.getTextContent();
+			if (pow.compareTo(reference.pow()) == 0) {
+
+				// Check transaction ID
+				txIDNode = getDescendantNode(utxoNode, "txID");
+				txID = txIDNode.getTextContent();
+				if (txID.compareTo(reference.transactionID()) == 0) {
 					
-					Node utxo = utxos.item(k);
-					
-					Node node = utxo.getFirstChild().getNextSibling();		// pow node
-					String pow = node.getTextContent();
-					
-					node = node.getNextSibling().getNextSibling();			// txID node
-					String txID = node.getTextContent();
-					
-					node = node.getNextSibling().getNextSibling();			// outputID node
-					String outputID = node.getTextContent();
-					
-					if (pow.compareTo(reference.pow()) == 0 &
-							txID.compareTo(reference.transactionID()) == 0 &
-							outputID.compareTo(reference.outputID()) == 0) 
-						doc.getDocumentElement().removeChild(utxo);
+					// Check output ID
+					outputIDNode = getDescendantNode(utxoNode, "outputID");
+					outputID = outputIDNode.getTextContent();
+					if (outputID.compareTo(reference.outputID()) == 0) return utxoNode;
 				}
 			}
 		}
-		
-		// Add new UTXOs
-		for (int i = 0; i < transactions.size(); i++) {
-			
-			ArrayList<Output> outputs = transactions.get(i).outputs();
-			
-			for (int j = 0; j < outputs.size(); j++) {
-				
-				Node utxo = doc.createElement("utxo");
-				
-				Element element = doc.createElement("pow");
-				element.setTextContent(block.pow());
-				utxo.appendChild(element);
-				
-				element = doc.createElement("txID");
-				element.setTextContent(String.valueOf(i + 1));		// 1-base so need to shift up
-				utxo.appendChild(element);
-				
-				element = doc.createElement("outputID");
-				element.setTextContent(String.valueOf(j + 1));		// 1-base so need to shift up
-				utxo.appendChild(element);
-				
-				doc.getDocumentElement().appendChild(utxo);
-			}
-		}
-		
-		XMLio.write(filename, doc, doc.getDocumentElement());
+		return null;
+	}
+	
+	/*
+	 * Returns the specified descendant node of the parent node.  Assumes there is only one
+	 * descendant node of its kind.
+	 */
+	private Node getDescendantNode(Node parentNode, String tag) {
+		Element parentElement = (Element) parentNode;
+		NodeList nodes = parentElement.getElementsByTagName(tag);
+		return nodes.item(0);
 	}
 	
 }

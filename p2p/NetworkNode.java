@@ -5,38 +5,32 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.URISyntaxException;
-import java.security.GeneralSecurityException;
-import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
-import java.security.SignatureException;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.TransformerException;
-
 import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
-
 import obj.Block;
 import obj.BlockHeader;
+import obj.BlockHeader.BlockHeaderException;
 import obj.Input;
 import obj.Output;
 import obj.Transaction;
 import obj.TransactionReference;
 import obj.Wallet;
-import obj.Transaction.TransactionInputsLessThanOutputsException;
+import obj.Transaction.TransactionException;
 import util.BaseConverter;
 import util.BlockExplorer;
 import util.MerkleTree;
+import util.MerkleTree.MerkleTreeException;
 import util.RSA512;
 import util.UTXOExplorer;
 import util.XMLio;
@@ -57,18 +51,20 @@ public class NetworkNode {
 	public final static String PEERS = "dat/peers.xml";
 	public final static String EXT = ".xml";
 	
-	public final static String REWARD = "50";
-	public static String difficulty = "00008fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+	public final static int REWARD = 50;
+	public static String difficulty = "00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 	
 	private ArrayList<Peer> peers;
 	private ArrayList<PrintWriter> toPeers;
+	private String msgSeparator = "MSG";
+	private String separator = " ";
 	
 	private BlockExplorer blockExplorer;
 	private UTXOExplorer utxoExplorer;
 	private Wallet wallet;
 	private ArrayList<Transaction> mempool;
 	
-	public NetworkNode() throws ParserConfigurationException, SAXException, IOException, URISyntaxException  {
+	public NetworkNode() {
 		wallet = new Wallet();
 		peers = new ArrayList<Peer>();
 		toPeers = new ArrayList<PrintWriter>();
@@ -78,71 +74,125 @@ public class NetworkNode {
 	public static void main (String[] args) {
 		
 		int port = Integer.parseInt(args[0]);
-		NetworkNode node;
-		
+		NetworkNode node = new NetworkNode();
+			
+		// Start server
+		ServerSocket server = null;
 		try {
-
-			node = new NetworkNode();
-			
-			// Start server
-			ServerSocket server = new ServerSocket(port);
-			String hostname = server.getInetAddress().getHostName();
-			System.out.println("I am " + hostname + " " + port);
-			
-			SocketListener socketListener = node.new SocketListener(server);
-			socketListener.start();
-			
-			// Initialise explorers
-			node.initialiseExplorers(BLOCKCHAIN + "_" + hostname + "_" + port + EXT, UTXO + "_" + hostname + "_" + port + EXT);
-			
-			// Find peers
-			for (int i = 0; i < 3; i++) node.findPeer(hostname, port);
-			
-			for (int i = 0; i < node.peers.size(); i++) {
-				Peer peer = node.peers.get(i);
-				System.out.println("peer " + i + ": " + peer.hostname() + " " + peer.port());
-			}
-			
-			// Start listening for new blocks
-			BlockListener listener = node.new BlockListener();
-			listener.start();
-			
-			// Start mining
-			Miner miner = node.new Miner();
-			miner.start();
-			
+			server = new ServerSocket(port);
 		} catch (IOException e) {
-			// ServerSocket exception
 			e.printStackTrace();
-		} catch (ParserConfigurationException e) {
-			// NetworkNode exception
-			e.printStackTrace();
-		} catch (SAXException e) {
-			// NetworkNode exception
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			// NetworkNode exception
-			e.printStackTrace();
-		} 	
+		}
+		
+		String hostname = server.getInetAddress().getHostName();
+		System.out.println("I am " + hostname + " " + port);
+		
+		// Keep listening for connection requests
+		SocketListener socketListener = node.new SocketListener(server);
+		socketListener.start();
+		
+		// Initialize explorers
+		node.initialiseExplorers(BLOCKCHAIN + "_" + hostname + "_" + port + EXT, UTXO + "_" + hostname + "_" + port + EXT);
+		
+		// Find peers TODO
+		for (int i = 0; i < 2; i++) node.findPeer(hostname, port);
+		
+		for (int i = 0; i < node.peers.size(); i++) {
+			Peer peer = node.peers.get(i);
+			System.out.println("peer " + i + ": " + peer.hostname() + " port " + peer.port());
+		}
+		
+		// Start listening for new blocks
+		BlockListener listener = node.new BlockListener();
+		Ping ping = node.new Ping();
+		listener.start();
+		ping.start();
+		
+		// Start mining
+		Miner miner = node.new Miner();
+		miner.start();
+		 	
 	}
 	
+	/**
+	 * Initializes the BlockExplorer and UTXOExplorer with the provided filenames.
+	 * @param blockchainFilename blockchain filename
+	 * @param utxoFilename UTXO filename
+	 */
+	public void initialiseExplorers(String blockchainFilename, String utxoFilename) {
+		blockExplorer = new BlockExplorer(blockchainFilename);
+		utxoExplorer = new UTXOExplorer(utxoFilename);
+	}
+	
+	/*
+	 * Connects to a new peer that is not already found in the list of peers
+	 * and is not self.
+	 */
+	private void findPeer(String thisHostname, int thisPort) {
+		
+		Document doc = XMLio.parse(PEERS);
+		doc.getDocumentElement().normalize();
+		
+		NodeList peerNodes = doc.getElementsByTagName("peer");
+		Element peerElement;
+		String hostname = null;
+		int port = -1;
+		
+		int  randomIndex;
+		boolean self = true, notUnique = false;
+		
+		while (self || notUnique) {
+			
+			randomIndex = ThreadLocalRandom.current().nextInt(peerNodes.getLength());
+			
+			peerElement = (Element) peerNodes.item(randomIndex);
+			hostname = peerElement.getElementsByTagName("hostname").item(0).getTextContent();
+			port = Integer.valueOf(peerElement.getElementsByTagName("port").item(0).getTextContent());
+			
+			self = isSame(hostname, thisHostname, port, thisPort);
+			
+			Peer peer;
+			for (int i = 0; i < peers.size(); i++) {
+				peer = peers.get(i);
+				notUnique = isSame(hostname, peer.hostname(), port, peer.port());
+				if (notUnique) break;
+			}
+		}
+		
+		Socket socket;
+		try {
+			socket = new Socket(hostname, port);	// All peers listed must be on line otherwise deadlock
+			connect(socket);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/*
+	 * Returns true if the hostname and port both match the provided hostname and port.
+	 */
+	private boolean isSame(String hostname1, String hostname2, int port1, int port2) {
+		if ((hostname1.compareTo(hostname2) == 0) & (port1 == port2)) return true;
+		return false;
+	}
+
+	/**
+	 * Adds a transaction to the memory pool.
+	 * @param transaction
+	 */
 	public void updateMempool(Transaction transaction) {
 		mempool.add(transaction);
 	}
 	
-	public void initialiseExplorers(String blockchainFilename, String utxoFilename) throws ParserConfigurationException, SAXException, IOException, URISyntaxException {
-		blockExplorer = new BlockExplorer(blockchainFilename);
-		utxoExplorer = new UTXOExplorer(utxoFilename);
-	}
-
-	public void mine() throws URISyntaxException, TransactionInputsLessThanOutputsException, GeneralSecurityException, ParserConfigurationException, SAXException, IOException, DOMException, TransformerException {
-		Block block = makeBlock(blockExplorer);
-		if (isNewBlock(block)) {
-			blockExplorer.extendBlockchain(block, difficulty);
-			broadcastBlock(block);
-		}
-	}
+	/* -----------------------------------------------------------------
+	 * 							SocketListener
+	 * 							& associated methods
+	 * -----------------------------------------------------------------
+	 */
 	
+	/**
+	 * Keeps a server socket live to accept any incoming connection requests.
+	 */
 	class SocketListener extends Thread {
 		
 		private ServerSocket server;
@@ -153,7 +203,6 @@ public class NetworkNode {
 		}
 		
 		public void run() {
-		
 			while (true) {
 				try {
 					Socket socket = server.accept();
@@ -166,6 +215,32 @@ public class NetworkNode {
 		}
 	}
 	
+	/*
+	 * Creates a new Peer object using the socket provided.  Adds the new 
+	 * peer to the list of peers (for polling using BlockListener).  Adds
+	 * the associated PrintWriter to the list of toPeers (for broadcasting).
+	 */
+	private void connect(Socket socket) throws IOException {
+		Peer peer = new Peer(socket);
+		peers.add(peer);
+		toPeers.add(peer.writer());
+	}
+	
+	/* -----------------------------------------------------------------
+	 * 							BlockListener
+	 * 							& associated methods
+	 * -----------------------------------------------------------------
+	 */
+	
+	/**
+	 * Continuously polls each peer for any incoming messages and handles different message
+	 * types:
+	 * <ul>
+	 * <li>request for blockchain height</li>
+	 * <li>blockchain height response</li>
+	 * <li>request for missing blocks</li>
+	 * <li>block broadcast</li>
+	 */
 	class BlockListener extends Thread {
 		
 		public BlockListener() {
@@ -174,65 +249,306 @@ public class NetworkNode {
 		
 		public void run() {
 			
-			String incoming;
+			BufferedReader reader;
+			Peer peer;
+			String message, msgType, msgBody, responseMsgType, response;
+			String[] split;
 			
 			while (true) {
 				
 				for (int i = 0; i < peers.size(); i++) {
 					
-					Peer peer = peers.get(i);
-					BufferedReader reader = peer.reader();
+					peer = peers.get(i);
+					reader = peer.reader();
+					
+					message = null;
+					msgType = null;
+					msgBody = null;
 					
 					try {
-						
-						incoming = reader.readLine();
-						
-						if (incoming != null) {
-							
-							System.out.println("Receiving block from " + peer.hostname() + " " + peer.port());
-							Block block = readBlock(incoming);
-							
-							if (isNewBlock(block)) {
-								blockExplorer.extendBlockchain(block, block.header().difficulty());
-								broadcastBlock(block);
-							}
-						}
-					} catch (IOException e) {
-						// BufferedReader exception
-						e.printStackTrace();
-					} catch (InvalidKeyException e) {
-						// readBlock exception
-						e.printStackTrace();
-					} catch (InvalidKeySpecException e) {
-						// readBlock exception
-						e.printStackTrace();
-					} catch (NoSuchAlgorithmException e) {
-						// readBlock exception
-						e.printStackTrace();
-					} catch (SignatureException e) {
-						// readBlock exception
-						e.printStackTrace();
-					} catch (DOMException e) {
-						// extendBlockchain exception
-						e.printStackTrace();
-					} catch (ParserConfigurationException e) {
-						// extendBlockchain exception
-						e.printStackTrace();
-					} catch (SAXException e) {
-						// extendBlockchain exception
-						e.printStackTrace();
-					} catch (TransformerException e) {
-						// extendBlockchain exception
-						e.printStackTrace();
-					} catch (URISyntaxException e) {
-						// extendBlockchain exception
+						message = reader.readLine();
+						split = message.split(msgSeparator);
+						msgType = split[0];
+						if (split.length > 1) msgBody = split[1];
+					} catch (IOException e){
 						e.printStackTrace();
 					}
+					
+//					System.out.println("Received msg of type: " + msgType);
+					
+					if (message != null) {
+						
+						switch (msgType) {
+						
+							case "0": /*Height request*/ {
+								responseMsgType = "1";
+								response = String.valueOf(blockExplorer.getBlockchainHeight());
+								peer.writer().println(responseMsgType + msgSeparator + response);
+//								System.out.println("Sent response: " + responseMsgType + msgSeparator + response);
+								break;
+							}
+							
+							case "1": /*Height response*/ {
+								int peerHeight = Integer.valueOf(msgBody);
+								int ownHeight = blockExplorer.getBlockchainHeight();
+								responseMsgType = "2";
+								
+								if (peerHeight > ownHeight) {
+									for (int j = ownHeight + 1; j <= peerHeight; j++) {
+										response = String.valueOf(j);
+										peer.writer().println(responseMsgType + msgSeparator + response);
+										System.out.println("Sent response: " + responseMsgType + msgSeparator + response);
+									}
+								}
+								break;
+							}
+							
+							case "2": /*Block by height request*/ {
+								responseMsgType = "3";
+								response = blockExplorer.getBlock(msgBody).toString();
+								peer.writer().println(responseMsgType + msgSeparator + response);
+								System.out.println("Sent response: " + responseMsgType + msgSeparator + response);
+								break;
+							}
+							
+							case "3": /*Block broadcast*/ {
+								Block block = null;
+								try{
+									block = readBlock(msgBody, peer.hostname() + " port " + peer.port());
+								} catch (Exception e) {
+									e.printStackTrace();
+								}
+								
+								if (isNewBlock(block)) {
+									blockExplorer.extendBlockchain(block);
+									broadcastBlock(block);
+								}
+								break;
+							}
+						}
+					} 
 				}
 			}
 		}
 	}
 	
+	
+	/*
+	 * Re-constructs a block from the received block broadcast.  Returns a block
+	 * if the re-constructed block is valid; null otherwise.
+	 */
+	private Block readBlock(String string, String peer) throws MalformedBlockException, BlockHeaderException, MerkleTreeException, TransactionException {
+		
+		System.out.println("Receiving block from " + peer);
+		
+		String[] sections = string.split("HEAD");
+		String header = sections[0];
+		String _header = sections[1];
+		
+		// Header
+		String[] headerSections = header.split(separator);
+		
+		int height = Integer.valueOf(headerSections[0]);
+		String previousPoW = headerSections[1];
+		String pow = headerSections[2];
+		String merkleRoot = headerSections[3];
+		String difficulty = headerSections[4];
+		int nonce = Integer.valueOf(headerSections[5]);
+		
+		BlockHeader blockHeader = new BlockHeader(previousPoW, merkleRoot);
+		blockHeader.setDifficulty(difficulty);
+		blockHeader.setNonce(nonce);
+		
+		// Meta data
+		String[] numTx = _header.split("NUM");
+		int numberOfTransactions = Integer.valueOf(numTx[0]);
+		String _numTx = numTx[1];
+		
+		// Transactions
+		String[] txs = _numTx.split("TX");
+		if (txs.length != numberOfTransactions) throw new MalformedBlockException("Mismatched number of transactions");
+		
+		ArrayList<Transaction> transactions = new ArrayList<Transaction>();
+		Transaction transaction;
+		
+		String tx, inputs, outputs, signatures, in, out;
+		String[] nums, parts, ins, outs, sigs, inparts, outparts;
+		int txID;
+		
+		int numberOfInputs, inputID;
+		Input input;
+		TransactionReference reference;
+		String refpow, reftx, refout;
+		
+		int numberOfOutputs, outputID;
+		Output output;
+		String amount;
+		
+		byte[] encodedPublicKeySpecBytes;
+		X509EncodedKeySpec encodedPublicKeySpec;
+		RSAPublicKey publicKey = null;
+		
+		KeyFactory factory = null;
+		try {
+			factory = KeyFactory.getInstance("RSA");
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		}
+		
+		for (int i = 0; i < numberOfTransactions; i++) {
+			
+			tx = txs[i];
+			transaction = new Transaction();
+			
+			nums = tx.split("#");
+			txID = Integer.valueOf(nums[0]);
+			numberOfInputs = Integer.valueOf(nums[1]);
+			numberOfOutputs = Integer.valueOf(nums[2]);
+			tx = nums[3];
+			
+			transaction.setTxID(txID);
+			
+			parts = tx.split("END");
+			if (numberOfInputs > 0) {
+				if (parts.length != 3) throw new MalformedBlockException();
+				else {	
+					inputs = parts[0];
+					outputs = parts[1];
+					signatures = parts[2];
+					
+					// Inputs
+					ins = inputs.split("IN");
+					if (ins.length != numberOfInputs) throw new MalformedBlockException("Mismatched number of inputs");
+					else {
+						for (int j = 0; j < ins.length; j++) {
+							
+							in = ins[j];
+							
+							inparts = in.split(separator);
+							inputID = Integer.valueOf(inparts[0]);
+							refpow = inparts[1];
+							reftx = inparts[2];
+							refout = inparts[3];
+							
+							reference = new TransactionReference(refpow, reftx, refout);
+							input = new Input(reference);
+							input.setInputID(inputID);
+							
+							transaction.addInput(input);
+						}
+					}
+					
+					// Signatures
+					sigs = signatures.split("SIG");
+					if (sigs.length != ins.length) throw new MalformedBlockException("Number of signatures does not match number of inputs");
+					else {
+						
+						transaction.initialiseSignatures(sigs.length);
+						
+						for (int k = 0; k < sigs.length; k++) 
+							transaction.signatures()[k] = BaseConverter.stringHexToDec(sigs[k]);
+					}
+				}
+			} else /* numberOfInputs = 0 */ {
+				inputs = parts[0];
+				outputs = parts[1];
+			}
+			
+			// Outputs
+			outs = outputs.split("OUT");
+			if (outs.length != numberOfOutputs) throw new MalformedBlockException("Mismatched number of outputs");
+			else {
+				for (int m = 0; m < outs.length; m++) {
+					
+					out = outs[m];
+					
+					outparts = out.split(separator);
+					outputID = Integer.valueOf(outparts[0]);
+					encodedPublicKeySpecBytes = BaseConverter.stringHexToDec(outparts[1]);
+					encodedPublicKeySpec = new X509EncodedKeySpec(encodedPublicKeySpecBytes);
+					amount = outparts[2];
+					
+					try {
+						publicKey = (RSAPublicKey) factory.generatePublic(encodedPublicKeySpec);
+					} catch (InvalidKeySpecException e) {
+						e.printStackTrace();
+					}
+					
+					output = new Output(publicKey, amount);
+					output.setOutputID(outputID);
+					
+					transaction.addOutput(output);
+				}
+			}
+			transactions.add(transaction);
+		}
+		
+		Block reconstructedBlock = new Block(blockHeader, pow, transactions);
+		reconstructedBlock.setHeight(height);
+		System.out.println("Block " + reconstructedBlock.pow() + " received and reconstructed: "+ (reconstructedBlock.toString().compareTo(string) == 0));
+		
+		boolean validBlock = reconstructedBlock.validate(blockExplorer, utxoExplorer);
+		System.out.println("Block " + reconstructedBlock.pow() + " is valid: " + validBlock);
+		
+		return reconstructedBlock;
+	}
+	
+	
+	@SuppressWarnings("serial") // TODO
+	public class MalformedBlockException extends Exception {
+		
+		public MalformedBlockException() {
+			super();
+		}
+		
+		public MalformedBlockException(String msg) {
+			super(msg);
+		}
+		
+	}
+	
+	
+	/* -----------------------------------------------------------------
+	 * 							Ping
+	 * 							& associated methods
+	 * -----------------------------------------------------------------
+	 */
+	
+	
+	/**
+	 * Continuously pings peers for the height of their chain.
+	 */
+ 	class Ping extends Thread {
+		
+		public Ping() {
+			super("Ping");
+		}
+		
+		public void run() {
+			String msgType = "0";
+			while (true) {
+				for (int i = 0; i < toPeers.size(); i++) toPeers.get(i).println(msgType + msgSeparator); 
+				try {
+					sleep(10);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		
+	}
+ 	
+	
+	/* -----------------------------------------------------------------
+	 * 							Miner
+	 * 							& associated methods
+	 * -----------------------------------------------------------------
+	 */
+ 	
+	
+	/**
+	 * Continuously mines new blocks.
+	 */
 	class Miner extends Thread {
 		
 		public Miner() {
@@ -241,275 +557,202 @@ public class NetworkNode {
 		
 		public void run() {
 			try {
-				while (true) mine();
+				while (true) {
+					mine();
+				}
 			} catch (DOMException e) {
-				e.printStackTrace();
-			} catch (URISyntaxException e) {
-				e.printStackTrace();
-			} catch (TransactionInputsLessThanOutputsException e) {
-				e.printStackTrace();
-			} catch (GeneralSecurityException e) {
-				e.printStackTrace();
-			} catch (ParserConfigurationException e) {
-				e.printStackTrace();
-			} catch (SAXException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
-			} catch (TransformerException e) {
 				e.printStackTrace();
 			}
 		}
 	}
 	
-	/*
-	 * Private methods
+	
+	/**
+	 * Mines a block.  The block is added to the blockchain if it is a valid new
+	 * block and then broadcast to peers.  The UTXO list is updated and the memory
+	 * pool is cleared of transactions.
 	 */
-	private boolean isNewBlock(Block block) {
-		String latestHeader = blockExplorer.getLastBlockHeader();
-		if (block.header().previousPoW().compareTo(latestHeader) == 0) return true;
-		else return false;
-	}
-	
-	private void findPeer(String thisHostname, int thisPort) throws ParserConfigurationException, SAXException, IOException, URISyntaxException {
+	public void mine() {
 		
-		Document doc = XMLio.parse(PEERS);
-		doc.getDocumentElement().normalize();
+		Block block = makeBlock(blockExplorer);
 		
-		NodeList hosts = doc.getElementsByTagName("hostname");
-		NodeList ports = doc.getElementsByTagName("port");
-		
-		String hostname = thisHostname;
-		int port = thisPort;
-		int randomIndex = ThreadLocalRandom.current().nextInt(hosts.getLength());
-		
-		boolean self = (hostname.compareTo(thisHostname) == 0) & (port == thisPort);
-		boolean unique = false;
-		
-		while (self || !unique) {
-			hostname = hosts.item(randomIndex).getTextContent();
-			port = Integer.valueOf(ports.item(randomIndex).getTextContent());
+		if (isNewBlock(block)) {
 			
-			self = thisHostname.compareTo(hostname) == 0 & thisPort == port; 
-			unique = unique(hostname, port);
-		
-			randomIndex = ThreadLocalRandom.current().nextInt(hosts.getLength());
-		}
-		
-		Socket socket = new Socket(hostname, port);			// All peers listed must be on line otherwise deadlock
-		connect(socket);
+			// Add block to the blockchain and broadcast to peers
+			block.setHeight(blockExplorer.getBlockchainHeight() + 1);
+			blockExplorer.extendBlockchain(block);
+			broadcastBlock(block);
+			
+			// Update UTXO list
+			utxoExplorer.update(block);
+			
+			// Clear the memory pool
+			mempool.clear();
+			
+		} // Block is discarded if it is not the latest block
 	}
 	
-	private void connect(Socket socket) throws IOException {
-		peers.add(new Peer(socket));
-		PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
-		toPeers.add(writer);
-	}
 	
-	private boolean unique(String hostname, int port) {
-		for (int i = 0; i < peers.size(); i++) {
-			Peer peer = peers.get(i);
-			if (hostname.compareTo(peer.hostname()) == 0 & port == peer.port()) return false;
-		}		
-		return true;
-	}
-	
-	private void broadcastBlock(Block block) {
-		for (int i = 0; i < toPeers.size(); i++) toPeers.get(i).println(block.toString());
-	}
-	
-	private Block makeBlock(BlockExplorer explorer) throws URISyntaxException, TransactionInputsLessThanOutputsException, GeneralSecurityException, TransformerException, ParserConfigurationException, SAXException, IOException {
+	/*
+	 * Returns a new block after finalizing the transactions which will be included
+	 * (every valid transaction in the memory pool), creating a mint transaction,
+	 * obtaining a Merkle root of the tree of transactions (including the mint transaction),
+	 * and successfully finding a solution for the proof-of-work hash.
+	 */
+	private Block makeBlock(BlockExplorer blockExplorer) {
 
-		// Validate transactions
+		// Clone memory pool
 		ArrayList<Transaction> transactions = cloneMempool();
+		
+		// Finalize transactions 
 		transactions = finalise(transactions);
 		
-		// Create mint transaction
+		// Add transaction fees to the mining reward
+		int totalReward = totalFees(transactions) + REWARD;
+		
+		// Create new key pair and save to wallet
+		// If block is not accepted, key pair is saved but the balance is invalid
+		// (cannot be spent as there is no valid transaction reference)
 		KeyPair newKeyPair = RSA512.generateKeyPair();
 		RSAPublicKey publicKey = (RSAPublicKey) newKeyPair.getPublic();
+		wallet.save(newKeyPair, String.valueOf(totalReward));
 		
-		int totalReward = Integer.parseInt(totalFees(transactions)) + Integer.parseInt(REWARD);
+		// Create mint transaction
 		Output gold = new Output(publicKey, String.valueOf(totalReward));
+		gold.setOutputID(1);
 		
 		Transaction mint = new Transaction();
 		mint.addOutput(gold);
 		
-		// Only include transactions which are valid
-		MerkleTree tree = new MerkleTree();
-		String root = tree.getRoot(explorer, mint, transactions);
+		// Mint transaction is always at index 0
+		transactions.add(0, mint);
 		
-		// Genesis block: previousPoW = b1769976a749b969f3dd57ac31b302805a84665848600e57c756b1fad44a12d7
-		BlockHeader newHeader = new BlockHeader(explorer.getLastBlockHeader(), root);
-		String pow = newHeader.hash(difficulty);
-		Block newBlock = new Block(newHeader, pow, tree.orderedTransactions());
+		// Get Merkle root
+		String root = MerkleTree.getRoot(transactions);
+		BlockHeader header = new BlockHeader(blockExplorer.getLastPoW(), root);
 		
-		// Update UTXO list
-		utxoExplorer.update(newBlock);
+		// Hash to find proof-of-work
+		String pow = header.hash(difficulty);
 		
-		wallet.save(newKeyPair, REWARD);
-		mempool.clear();
-		
-		return newBlock;	
+		return new Block(header, pow, transactions);	
 	}
-			
+	
+	
+	/*
+	 * Returns a shallow clone of the transactions in the memory pool.
+	 */
 	private ArrayList<Transaction> cloneMempool() {
-		
 		ArrayList<Transaction> transactions = new ArrayList<Transaction>();
 		for (int i = 0; i < mempool.size(); i++) transactions.add(mempool.get(i));
-		
 		return transactions;
 	}
 	
-	private ArrayList<Transaction> finalise(ArrayList<Transaction> transactions) throws InvalidKeyException, NoSuchAlgorithmException, SignatureException, TransactionInputsLessThanOutputsException, InvalidKeySpecException, DOMException {
+	
+	/*
+	 * Removes any transaction which attempts to double-spend within the same transaction or 
+	 * group of transactions.  Finalizes the transactions which remain. 
+	 */
+	private ArrayList<Transaction> finalise(ArrayList<Transaction> transactions) {
 		
 		ArrayList<TransactionReference> references = new ArrayList<TransactionReference>();
+		TransactionReference reference;
+		boolean seen;
 		
-		// For each transaction
+		Transaction tx;
+		ArrayList<Input> inputs;
+		Input input;
+		String txID, inputID;
+		
+		// Check for double-spending in same transaction or group of transactions
 		for (int i = 0; i < transactions.size(); i++) {
 			
-			System.out.println("Finalising transaction " + (i + 1) + " of " + transactions.size() + " ...");
+			tx = transactions.get(i);
+			txID = tx.txID();
 			
-			Transaction tx = transactions.get(i);
-			tx.finalise(blockExplorer);
-
-			// Check input against UTXO list and verify signatures
-			boolean validTransaction = tx.validate(i, blockExplorer, utxoExplorer);
-			
-			// For each input
-			ArrayList<Input> inputs = tx.inputs();
+			inputs = tx.inputs();
 			for (int j = 0; j < inputs.size(); j++) {
 				
-				// Check for double-spending in same transaction or group of transactions
-				TransactionReference reference = inputs.get(j).reference();
-				boolean seen = seen(references, reference);
-				System.out.println("Input " + (i + 1) + "." + j + " has been seen previously in this group of transactions: " + seen);
-				if (!seen) references.add(reference);
+				input = inputs.get(j);
+				inputID = input.inputID();
+				reference = input.reference();
 				
-				if (!validTransaction || seen) {
+				seen = seen(references, reference);
+				
+				if (seen) {
 					transactions.remove(i);
-					System.out.println("Input " + (i + 1) + "." + j + " is invalid and has been removed");
+					System.out.println("Input " + txID + "." + inputID + " is invalid and has been removed");
 				}
-				else System.out.println("Input " + (i + 1) + "." + j + " is valid");
+				else references.add(reference);
 			}
 		}
 		
+		// Finalize transactions
+		for ( int k = 0; k < transactions.size(); k++) {
+			
+			tx = transactions.get(k);
+			txID = tx.txID();
+			
+			System.out.println("Finalising transaction " + txID + " of " + transactions.size() + " ...");
+			try {
+				tx.finalise(blockExplorer, utxoExplorer);
+			} catch (TransactionException e) {
+				transactions.remove(tx);
+				e.printStackTrace();
+			}
+			
+		}
 		return transactions;
 	}
 	
-	private Block readBlock(String string) throws InvalidKeySpecException, NoSuchAlgorithmException, InvalidKeyException, SignatureException {
-		
-		String[] sections = string.split(" HEAD ");
-		String header = sections[0];
-		String body = sections[1];
-		
-		sections = header.split(" ");
-		
-		String previousPoW = sections[0];
-		String pow = sections[1];
-		String merkleRoot = sections[2];
-		String difficulty = sections[3];
-		int nonce = Integer.parseInt(sections[4]);
-		int numberOfTransactions = Integer.valueOf(sections[5]);
-		
-		BlockHeader blockHeader = new BlockHeader(previousPoW, merkleRoot);
-		blockHeader.setDifficulty(difficulty);
-		blockHeader.setNonce(nonce);
-		
-		sections = body.split(" TX ");
-		ArrayList<Transaction> transactions = new ArrayList<Transaction>();
-		
-		for (int i = 0; i < numberOfTransactions; i++) {
-			
-			Transaction transaction = new Transaction();
-			
-			String section = sections[i];
-			String[] subsections = section.split("#");
-			
-			int numberOfInputs = Integer.parseInt(subsections[0]);
-			int numberOfOutputs = Integer.parseInt(subsections[1]);
-			
-			// Inputs
-			String tx = subsections[2];
-			subsections = tx.split(" IN ");
-			
-			String inputs = subsections[0];
-			String[] in = inputs.split(" ");
-			
-			for (int j = 0; j < numberOfInputs; j++) {
-				String refPoW = in[j + 0];
-				String refTxID = in[j + 1];
-				String refOutputID = in[j + 2];
-				TransactionReference reference = new TransactionReference(refPoW, refTxID, refOutputID);
-				Input input = new Input(reference);
-				transaction.addInput(input);
-			}
-			
-			// Outputs
-			String subsection = subsections[1];
-			subsections = subsection.split(" OUT ");
-			
-			String outputs = subsections[0];
-			String[] outs = outputs.split(" ");
-			
-			KeyFactory factory = KeyFactory.getInstance("RSA");
-			
-			for (int j = 0; j < numberOfOutputs; j++) {
-				String key = outs[j + 0];
-				byte[] encodedPublicKey = BaseConverter.stringHexToDec(key);
-				X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(encodedPublicKey);
-				RSAPublicKey publicKey = (RSAPublicKey) factory.generatePublic(publicKeySpec);
-				String amount = outs[j + 1];
-				Output output = new Output(publicKey, amount);
-				transaction.addOutput(output);
-			}
-			
-			// Signatures
-			if (numberOfInputs > 0) {
-				
-				String signatures = subsections[1];
-				String[] sigs = signatures.split(" ");
-				transaction.initialiseSignatures(numberOfInputs);
-				
-				for (int j = 0; j < numberOfInputs; j++) transaction.signatures()[j] = BaseConverter.stringHexToDec(sigs[j]);
-			}
-			
-			transactions.add(transaction);
-		}
-		
-		Block reconstructedBlock = new Block(blockHeader, pow, transactions);
-		System.out.println("Block " + reconstructedBlock.pow() + " received and reconstructed: "+ (reconstructedBlock.toString().compareTo(string) == 0));
-		
-		boolean validBlock = reconstructedBlock.validate(blockExplorer, utxoExplorer);
-		System.out.println("Block " + reconstructedBlock.pow() + " validated: " + validBlock);
-		
-		if (validBlock) return reconstructedBlock;
-		return null;
-	}
 	
-	private String totalFees(ArrayList<Transaction> finalisedTransactions) {
-		
-		int fees = 0;
-		
-		for (int i = 0; i < finalisedTransactions.size(); i++) {
-			Transaction tx = finalisedTransactions.get(i);
-			fees += Integer.parseInt(tx.transactionFee());
-		}
-		
-		return String.valueOf(fees);
-	}
-	
+	/*
+	 * Returns true if this transaction reference matches any in the list of transaction
+	 * references.
+	 */
 	private boolean seen(ArrayList<TransactionReference> references, TransactionReference newReference) {
+		
+		TransactionReference reference;
 		
 		for (int i = 0; i < references.size(); i++) {
 			
-			TransactionReference reference = references.get(i);
+			reference = references.get(i);
 			
 			if (newReference.pow().compareTo(reference.pow()) == 0 &
 					newReference.transactionID().compareTo(reference.transactionID()) == 0 &
 					newReference.outputID().compareTo(reference.outputID()) == 0) return true;
 		}
-		
 		return false;
 	}
-
+	
+	
+	/*
+	 * Computes the total of fees for all finalized transactions.
+	 */
+	private int totalFees(ArrayList<Transaction> finalisedTransactions) {
+		int fees = 0;
+		for (int i = 0; i < finalisedTransactions.size(); i++)
+			fees += finalisedTransactions.get(i).transactionFee();
+		return fees;
+	}
+	
+	
+	/*
+	 * Checks if the block's previous hash is the latest hash in the blockchain.
+	 */
+	private boolean isNewBlock(Block block) {
+		String latestHeader = blockExplorer.getLastPoW();
+		if (block.header().previousPoW().compareTo(latestHeader) == 0) return true;
+		else return false;
+	}
+	
+	
+	/*
+	 * Broadcasts the given block to all peers.
+	 */
+	private void broadcastBlock(Block block) {
+		String msgType = "3";
+		String message = block.toString();
+		for (int i = 0; i < toPeers.size(); i++) toPeers.get(i).println(msgType + msgSeparator + message); 
+	}
+	
 }

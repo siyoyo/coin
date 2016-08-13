@@ -2,20 +2,10 @@ package test;
 
 import static org.junit.Assert.*;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPublicKey;
-import java.security.spec.InvalidKeySpecException;
-
-import javax.xml.parsers.ParserConfigurationException;
-
 import org.junit.Before;
 import org.junit.Test;
-import org.w3c.dom.DOMException;
 import org.w3c.dom.Node;
-import org.xml.sax.SAXException;
-
 import obj.TransactionReference;
 import util.BlockExplorer;
 
@@ -34,29 +24,19 @@ public class BlockExplorerTest {
 	
 	@Before
 	public void initialise() {
-		try {
-			explorer = new BlockExplorer(file);
-			reference = new TransactionReference("00beca72451ca0eb365c622f8a35997eb56773c9b05ad91a9ccf24ecec33e384", "1", "1");
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (ParserConfigurationException e) {
-			e.printStackTrace();
-		} catch (SAXException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		explorer = new BlockExplorer(file);
+		reference = new TransactionReference("00beca72451ca0eb365c622f8a35997eb56773c9b05ad91a9ccf24ecec33e384", "1", "1");
 	}
 	
 	@Test
 	public void testGetLastBlockHeader() {
-		assertEquals("00beca72451ca0eb365c622f8a35997eb56773c9b05ad91a9ccf24ecec33e384", explorer.getLastBlockHeader());
+		assertEquals("00beca72451ca0eb365c622f8a35997eb56773c9b05ad91a9ccf24ecec33e384", explorer.getLastPoW());
 	}
 	
 	@Test
 	public void testGetBlockByHeight() {
 		
-		Node node = explorer.getBlockByHeight("1");
+		Node node = explorer.getBlockNodeByHeight("1");
 		
 		node = node.getFirstChild().getNextSibling();	// header node
 		node = node.getFirstChild().getNextSibling();	// previousPoW node
@@ -70,7 +50,7 @@ public class BlockExplorerTest {
 	@Test
 	public void testGetBlock() {
 			
-		Node node = explorer.getBlockByHash("000337a5cfd5c7db77a49eeaf39c544c72c828ff79a35828b3c58ed6a8d09465");
+		Node node = explorer.getBlockNodeByHash("000337a5cfd5c7db77a49eeaf39c544c72c828ff79a35828b3c58ed6a8d09465");
 		
 		node = node.getFirstChild().getNextSibling();	// header node
 		node = node.getFirstChild().getNextSibling();	// previousPoW node
@@ -84,20 +64,8 @@ public class BlockExplorerTest {
 	@Test
 	public void testRecipientAddress() {
 		
-		String address = null;
-		
-		try {
-			
-			RSAPublicKey publicKey = explorer.recipientPublicKey(reference);
-			address = publicKey.getModulus().toString(16);
-			
-		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
-		} catch (InvalidKeySpecException e) {
-			e.printStackTrace();
-		} catch (DOMException e) {
-			e.printStackTrace();
-		}
+		RSAPublicKey publicKey = explorer.publicKey(reference);
+		String address = publicKey.getModulus().toString(16);
 		
 		assertEquals("9ec35a14972974a70bcf7e5dd602f90b9047dcd63ed6b3815b1531fda053f8ede56efe308d1cb71590c1599353038190174f1d3e0c94cc8e8634c9f24df36953", address);
 	}

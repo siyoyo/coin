@@ -1,22 +1,13 @@
 package test;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.interfaces.RSAPrivateCrtKey;
 import java.security.interfaces.RSAPublicKey;
 
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.TransformerException;
-
 import org.w3c.dom.DOMException;
-import org.xml.sax.SAXException;
-
 import obj.Input;
 import obj.Output;
 import obj.Transaction;
-import obj.Transaction.TransactionInputsLessThanOutputsException;
 import p2p.NetworkNode;
 import obj.TransactionReference;
 import obj.Wallet;
@@ -32,7 +23,7 @@ public class NetworkNodeTest {
 			BlockExplorer explorer = new BlockExplorer("dat/blockchain.xml");
 			TransactionReference reference = new TransactionReference("0027068ef179a0d259acd071e153fc1721d45078baa3cf8581cc20db2630203b", "1", "1");
 			
-			String address = explorer.recipientAddress(reference);
+			String address = explorer.outputAddress(reference);
 			
 			Wallet wallet = new Wallet();
 			RSAPrivateCrtKey privateKey = wallet.privateKey(address);
@@ -57,23 +48,11 @@ public class NetworkNodeTest {
 			node.updateMempool(tx2);
 			node.mine();
 			
-			wallet.updateBalance(address, output.amount());
+			int amount = Integer.valueOf(output.amount());
 			
-		} catch (ParserConfigurationException e) {
-			e.printStackTrace();
-		} catch (SAXException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
+			wallet.updateBalance(address, -amount);
+			
 		} catch (DOMException e) {
-			e.printStackTrace();
-		} catch (TransactionInputsLessThanOutputsException e) {
-			e.printStackTrace();
-		} catch (GeneralSecurityException e) {
-			e.printStackTrace();
-		} catch (TransformerException e) {
 			e.printStackTrace();
 		}
 		

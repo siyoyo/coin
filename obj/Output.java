@@ -1,6 +1,5 @@
 package obj;
 
-import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPublicKey;
 
 import util.BaseConverter;
@@ -14,45 +13,50 @@ import util.SHA256;
  */
 public class Output {
 	
-	private RSAPublicKey recipientPublicKey;
-	private String recipientPublicKeyString;
-	private String recipientAddress;
+	private RSAPublicKey publicKey;
+	private String publicKeyString;
+	private String outputAddress;
 	private String amount;
+	private int outputID;
 	
 	public Output(RSAPublicKey recipientPublicKey, String amount) {
 		
-		this.recipientPublicKey = recipientPublicKey;
+		this.publicKey = recipientPublicKey;
 		byte[] encodedPublicKey = recipientPublicKey.getEncoded(); 
-		this.recipientPublicKeyString = BaseConverter.bytesDecToHex(encodedPublicKey);
+		this.publicKeyString = BaseConverter.bytesDecToHex(encodedPublicKey);
+		
 		this.amount = amount;
 		
-		try {
-			SHA256 sha256 = new SHA256();
-			recipientAddress = sha256.hashString(recipientPublicKeyString);
-		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
-		}
-		
+		SHA256 sha256 = new SHA256();
+		outputAddress = sha256.hashString(publicKeyString);
 	}
 	
 	public String toString() {
-		return amount + " to " + recipientAddress;
+		return amount + " to " + outputAddress;
 	}
 	
-	public RSAPublicKey recipientPublicKey() {
-		return recipientPublicKey;
+	public RSAPublicKey publicKey() {
+		return publicKey;
 	}
 	
 	public String recipientPublicKeyString() {
-		return recipientPublicKeyString;
+		return publicKeyString;
 	}
 	
-	public String recipientAddress() {
-		return recipientAddress;
+	public String outputAddress() {
+		return outputAddress;
 	}
 	
 	public String amount() {
 		return amount;
+	}
+	
+	public String outputID() {
+		return String.valueOf(outputID);
+	}
+	
+	public void setOutputID(int outputID) {
+		this.outputID = outputID;
 	}
 
 }

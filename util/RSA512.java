@@ -13,20 +13,34 @@ public class RSA512 {
 	
 	private final static String KEY_ALGORITHM = "RSA";
 	
-	public static KeyPair generateKeyPair() throws NoSuchAlgorithmException {
+	public static KeyPair generateKeyPair() {
 		
-		KeyPairGenerator generator = KeyPairGenerator.getInstance(KEY_ALGORITHM);
-		generator.initialize(512, new SecureRandom());
+		KeyPair keyPair = null;
 		
-		return generator.generateKeyPair();	
+		try {
+			KeyPairGenerator generator = KeyPairGenerator.getInstance(KEY_ALGORITHM);
+			generator.initialize(512, new SecureRandom());
+			keyPair = generator.generateKeyPair(); 
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		}
+		return keyPair;
 	}
 	
-	public static RSAPublicKey decodePublicKey(String address) throws NoSuchAlgorithmException, InvalidKeySpecException {
+	public static RSAPublicKey decodePublicKey(String address) {
 		
 		byte[] encoded = BaseConverter.stringHexToDec(address);
 		X509EncodedKeySpec encodedPublicKeySpec = new X509EncodedKeySpec(encoded);
-		KeyFactory factory = KeyFactory.getInstance(KEY_ALGORITHM);
-		RSAPublicKey publicKey = (RSAPublicKey) factory.generatePublic(encodedPublicKeySpec);
+		RSAPublicKey publicKey = null;
+		
+		try {
+			KeyFactory factory = KeyFactory.getInstance(KEY_ALGORITHM);
+			publicKey = (RSAPublicKey) factory.generatePublic(encodedPublicKeySpec);
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		} catch (InvalidKeySpecException e) {
+			e.printStackTrace();
+		}
 		
 		return publicKey;
 	}
