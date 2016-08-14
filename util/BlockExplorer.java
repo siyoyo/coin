@@ -45,6 +45,15 @@ public class BlockExplorer {
 	}
 	
 	/**
+	 * Returns a list containing all the block nodes.
+	 * @return list of all block nodes
+	 */
+	public NodeList getBlockNodes() {
+		doc.getDocumentElement().normalize();
+		return doc.getElementsByTagName("block");
+	}
+	
+	/**
 	 * Returns the proof-of-work hash string of the last block.
 	 * @return proof-of-work hash string
 	 */
@@ -52,6 +61,18 @@ public class BlockExplorer {
 		String height = String.valueOf(getBlockchainHeight());
 		Node block = getBlockNodeByHeight(height);
 		return getPoW(block);
+	}
+	
+	/**
+	 * Returns the proof-of-work hash string of the block at the
+	 * requested height.
+	 * @param height requested height
+	 * @return proof-of-work hash string
+	 */
+	public String getPoWByHeight(String height) {
+		Node blockNode = getBlockNodeByHeight(height);
+		Node powNode = getDescendantNode(blockNode, "pow");
+		return powNode.getTextContent();
 	}
 	
 	/**
@@ -234,12 +255,25 @@ public class BlockExplorer {
 	}
 	
 	/**
-	 * Writes the new block to the blockchain
-	 * @param block
+	 * Adds the new block to the blockchain.
+	 * @param block block
 	 */
-	public void extendBlockchain(Block block) {
+	public void addNewBlock(Block block) {
 		
 		doc.getDocumentElement().normalize();
+		
+		Node blockNode = createNewBlockNode(block);
+		doc.getDocumentElement().appendChild(blockNode);
+		
+		System.out.println("Added new block " + block.pow());
+	}
+	
+	/**
+	 * Creates a block node and children from the provided block.
+	 * @param block block
+	 * @return block node
+	 */
+	public Node createNewBlockNode(Block block) {
 		
 		Node blockNode = doc.createElement("block");
 		
@@ -362,10 +396,23 @@ public class BlockExplorer {
 		}
 		
 		blockNode.appendChild(bodyNode);
-		doc.getDocumentElement().appendChild(blockNode);
-		
+		return blockNode;
+	}
+	
+	/**
+	 * Writes the current state of the document object to file.
+	 */
+	public void updateBlockchainFile() {
 		XMLio.write(filename, doc, doc.getDocumentElement());
-		System.out.println("Added new block " + block.pow());
+	}
+	
+	/**
+	 * Removes the given block node from the document
+	 * @param blockNode block node
+	 */
+	public void removeBlockNode(Node blockNode) {
+		doc.getDocumentElement().normalize();
+		doc.getDocumentElement().removeChild(blockNode);
 	}
 	
 	/**

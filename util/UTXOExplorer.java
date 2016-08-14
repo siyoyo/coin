@@ -96,6 +96,32 @@ public class UTXOExplorer {
 				doc.getDocumentElement().appendChild(utxoNode);
 			}
 		}
+	}
+	
+	public void rebuildUTXOList(BlockExplorer blockExplorer) {
+		
+		doc.getDocumentElement().normalize();
+		
+		// Clear all UTXO entries
+		NodeList utxoNodes = doc.getElementsByTagName("utxo");
+		for (int i = 0; i < utxoNodes.getLength(); i++) doc.getDocumentElement().removeChild(utxoNodes.item(i));
+		
+		// Rebuild UTXO entries
+		Block block;
+		int blockchainHeight = blockExplorer.getBlockchainHeight();
+		for (int height = 1; height <= blockchainHeight; height++) {
+			block = blockExplorer.getBlock(String.valueOf(height));
+			update(block);
+		}
+		
+		// Write to file
+		updateUTXOFile();
+	}
+	
+	/**
+	 * Writes the current state of the document object to file.
+	 */
+	public void updateUTXOFile() {
 		XMLio.write(filename, doc, doc.getDocumentElement());
 	}
 	

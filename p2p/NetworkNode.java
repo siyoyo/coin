@@ -17,6 +17,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import obj.Block;
 import obj.BlockHeader;
@@ -52,17 +53,22 @@ public class NetworkNode {
 	public final static String EXT = ".xml";
 	
 	public final static int REWARD = 50;
-	public static String difficulty = "00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+	public static String difficulty = "0000000fffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 	
 	private ArrayList<Peer> peers;
 	private ArrayList<PrintWriter> toPeers;
 	private String msgSeparator = "MSG";
+	private String blockSeparator = "BLK";
 	private String separator = " ";
 	
 	private BlockExplorer blockExplorer;
 	private UTXOExplorer utxoExplorer;
+	
 	private Wallet wallet;
 	private ArrayList<Transaction> mempool;
+	
+	private ConsensusBuilder consensusBuilder;
+	private Miner miner;
 	
 	public NetworkNode() {
 		wallet = new Wallet();
@@ -75,7 +81,7 @@ public class NetworkNode {
 		
 		int port = Integer.parseInt(args[0]);
 		NetworkNode node = new NetworkNode();
-			
+
 		// Start server
 		ServerSocket server = null;
 		try {
@@ -102,16 +108,23 @@ public class NetworkNode {
 			System.out.println("peer " + i + ": " + peer.hostname() + " port " + peer.port());
 		}
 		
-		// Start listening for new blocks
+		// Start listening to peers
 		BlockListener listener = node.new BlockListener();
-		Ping ping = node.new Ping();
 		listener.start();
-		ping.start();
+		
+		// Start broadcasting height
+		Pong pong = node.new Pong();
+		pong.start();
+		
+		// Start syncing chain
+		node.consensusBuilder = node.new ConsensusBuilder();
+		node.consensusBuilder.syncChain();
 		
 		// Start mining
-		Miner miner = node.new Miner();
-		miner.start();
-		 	
+		node.miner = node.new Miner();
+		node.miner.start();
+		
+		node.consensusBuilder.start();
 	}
 	
 	/**
@@ -252,7 +265,9 @@ public class NetworkNode {
 			BufferedReader reader;
 			Peer peer;
 			String message, msgType, msgBody, responseMsgType, response;
-			String[] split;
+			String[] split, s;
+			String height, pow, same;
+			int iHeight;
 			
 			while (true) {
 				
@@ -267,6 +282,7 @@ public class NetworkNode {
 					
 					try {
 						message = reader.readLine();
+//						System.out.println("Received: " + message);
 						split = message.split(msgSeparator);
 						msgType = split[0];
 						if (split.length > 1) msgBody = split[1];
@@ -274,53 +290,102 @@ public class NetworkNode {
 						e.printStackTrace();
 					}
 					
-//					System.out.println("Received msg of type: " + msgType);
-					
 					if (message != null) {
 						
 						switch (msgType) {
 						
-							case "0": /*Height request*/ {
-								responseMsgType = "1";
-								response = String.valueOf(blockExplorer.getBlockchainHeight());
-								peer.writer().println(responseMsgType + msgSeparator + response);
-//								System.out.println("Sent response: " + responseMsgType + msgSeparator + response);
+							case "0": /*Height broadcast*/ {
+								int peerHeight = Integer.valueOf(msgBody);
+								peer.updateCurrentHeight(peerHeight);
 								break;
 							}
 							
-							case "1": /*Height response*/ {
-								int peerHeight = Integer.valueOf(msgBody);
-								int ownHeight = blockExplorer.getBlockchainHeight();
-								responseMsgType = "2";
+							case "1": /*Check hash by height*/ {
 								
-								if (peerHeight > ownHeight) {
-									for (int j = ownHeight + 1; j <= peerHeight; j++) {
-										response = String.valueOf(j);
-										peer.writer().println(responseMsgType + msgSeparator + response);
-										System.out.println("Sent response: " + responseMsgType + msgSeparator + response);
+								s = msgBody.split(separator);
+								height = s[0];
+								pow = s[1];
+								
+								responseMsgType = "2";
+								response = height + separator + pow + separator;
+								
+								if (pow.compareTo(blockExplorer.getPoWByHeight(height)) == 0) response += "true";
+								else response += "false";
+								peer.writer().println(responseMsgType + msgSeparator + response);
+								System.out.println(responseMsgType + msgSeparator + response);
+								break;
+							}
+							
+							case "2": /*Check hash by height response*/ {
+								
+								s = msgBody.split(separator);
+								height = s[0];
+								iHeight = Integer.valueOf(height);
+								pow = s[1];
+								same = s[2];
+								
+								// If hash at height is correct, set ConsensusBuilder's max consensus height
+								if (same.compareTo("true") == 0) {
+									System.out.println("iHeight: " + iHeight);
+									consensusBuilder.setMaxConsensusHeight(iHeight);
+									break;
+								}
+								
+								// If hash at height is incorrect, check hash at height - 1
+								if (same.compareTo("false") == 0) {
+									responseMsgType = "1";
+									String requestHeight = String.valueOf(iHeight - 1);
+									response = requestHeight + separator + blockExplorer.getPoWByHeight(requestHeight);
+									peer.writer().println(responseMsgType + msgSeparator + response);
+									System.out.println(responseMsgType + msgSeparator + response);
+									break;
+								}
+								
+								break;
+							}
+							
+							case "3": /*Block by height request*/ {
+								
+								responseMsgType = "4";
+								response = new String();
+								
+								s = msgBody.split(separator);
+								
+								for (int j = 0; j < s.length; j++) 
+									response += blockExplorer.getBlock(s[j]).toString() + blockSeparator;
+									
+								peer.writer().println(responseMsgType + msgSeparator + response);
+								System.out.println(responseMsgType + msgSeparator + response);
+								break;
+							}
+							
+							case "4": /*Block by height response */ {
+								
+								s = msgBody.split(blockSeparator);
+								
+								Block block;
+								for (int j = 0; j < s.length; j++) {
+									try {
+										block = readBlock(s[j], peer.hostname() + " port " + peer.port());
+										peer.storedBlocks().add(block);
+									} catch (Exception e) {
+										e.printStackTrace();
 									}
 								}
 								break;
 							}
 							
-							case "2": /*Block by height request*/ {
-								responseMsgType = "3";
-								response = blockExplorer.getBlock(msgBody).toString();
-								peer.writer().println(responseMsgType + msgSeparator + response);
-								System.out.println("Sent response: " + responseMsgType + msgSeparator + response);
-								break;
-							}
-							
-							case "3": /*Block broadcast*/ {
+							case "5": /*Block broadcast*/ {
 								Block block = null;
-								try{
+								try {
 									block = readBlock(msgBody, peer.hostname() + " port " + peer.port());
 								} catch (Exception e) {
 									e.printStackTrace();
 								}
 								
 								if (isNewBlock(block)) {
-									blockExplorer.extendBlockchain(block);
+									blockExplorer.addNewBlock(block);
+									blockExplorer.updateBlockchainFile();
 									broadcastBlock(block);
 								}
 								break;
@@ -331,7 +396,6 @@ public class NetworkNode {
 			}
 		}
 	}
-	
 	
 	/*
 	 * Re-constructs a block from the received block broadcast.  Returns a block
@@ -507,27 +571,145 @@ public class NetworkNode {
 		
 	}
 	
-	
 	/* -----------------------------------------------------------------
-	 * 							Ping
+	 * 							ConsensusBuilder
 	 * 							& associated methods
 	 * -----------------------------------------------------------------
 	 */
 	
-	
 	/**
-	 * Continuously pings peers for the height of their chain.
+	 * Periodically checks the longest chain
+	 *
 	 */
- 	class Ping extends Thread {
+	class ConsensusBuilder extends Thread {
 		
-		public Ping() {
-			super("Ping");
+		private int maxConsensusHeight;
+		private int numberOfBlocks;
+		
+		public ConsensusBuilder() {
+			super("Consensus builder");
 		}
 		
 		public void run() {
+			while (true) syncChain();
+		}
+		
+		private void setMaxConsensusHeight(int maxConsensusHeight) {
+			this.maxConsensusHeight = maxConsensusHeight;
+			System.out.println("max consensus height: " + this.maxConsensusHeight);
+		}
+		
+		private void syncChain() {
+			
+			Peer peer, syncToPeer = null;
+			int ownHeight = blockExplorer.getBlockchainHeight();
+			int maxHeight = -1;
+			int peerHeight;
+			
+			System.out.println("own height: " + ownHeight);
+			
+			// Check chain height of peers			
+			for (int i = 0; i < peers.size(); i++) {
+				
+				peer = peers.get(i);
+				peerHeight = peer.currentHeight();
+				
+				if (peerHeight > maxHeight) {
+					maxHeight = peerHeight;
+					syncToPeer = peer;
+				}
+			}
+			
+			System.out.println("max height: " + maxHeight);
+			
+			// Start sync with longest chain
+			String msgType, message;
+			if (maxHeight > ownHeight) {
+				
+				System.out.println("Syncing with " + syncToPeer.hostname() + " " + syncToPeer.port());
+				
+				// Reset values
+				maxConsensusHeight = -1;
+				numberOfBlocks = -1;
+				
+				// Initialize storedBlocks
+				syncToPeer.initialiseStoredBlocks();
+				
+				// Start consensus process
+				msgType = "1"; /* Check hash at height */
+				message = ownHeight + separator + blockExplorer.getPoWByHeight(String.valueOf(ownHeight));
+				syncToPeer.writer().println(msgType + msgSeparator + message);
+				System.out.println(msgType + msgSeparator + message);
+				
+				while (maxConsensusHeight == -1) System.out.println("Waiting...");/* Wait to determine number of blocks */
+				numberOfBlocks = maxHeight - maxConsensusHeight;
+				
+				System.out.println("height difference: " + numberOfBlocks);
+				
+				// Request blocks
+				msgType = "3";
+				message = new String();
+				int start = maxConsensusHeight + 1;
+				
+				for (int requestedHeight = start; requestedHeight <= maxHeight; requestedHeight++)
+					message += String.valueOf(requestedHeight) + separator;
+				
+				syncToPeer.writer().println(msgType + msgSeparator + message);
+				
+				System.out.println(msgType + msgSeparator + message);
+				
+				while (syncToPeer.storedBlocks().size() < numberOfBlocks) System.out.println("size of stored blocks: " + syncToPeer.storedBlocks().size());/* Wait to receive all requested blocks */
+				
+				
+				// Remove blocks
+				Node blockNode;
+				for (int height = start; height <= ownHeight; height++) {
+					blockNode = blockExplorer.getBlockNodeByHeight(String.valueOf(height));
+					blockExplorer.removeBlockNode(blockNode);
+					System.out.println("Removed block: " + height);
+				}
+				
+				// Add new blocks
+				ArrayList<Block> storedBlocks = syncToPeer.storedBlocks();
+				for (int i = 0; i < storedBlocks.size(); i++) {
+					blockExplorer.addNewBlock(storedBlocks.get(i));
+					System.out.println("Add block: " + i + " of " + storedBlocks.size());
+				}
+				
+				// Update blockchain file
+				blockExplorer.updateBlockchainFile();
+				
+				// Rebuild UTXO file
+				utxoExplorer.rebuildUTXOList(blockExplorer);
+			}
+		}
+	}
+	
+	/* -----------------------------------------------------------------
+	 * 							Pong
+	 * 							& associated methods
+	 * -----------------------------------------------------------------
+	 */
+	
+	/**
+	 * Continuously broadcasts own height.
+	 */
+ 	class Pong extends Thread {
+		
+		public Pong() {
+			super("Pong");
+		}
+		
+		public void run() {
+			
 			String msgType = "0";
+			String height;
+			
 			while (true) {
-				for (int i = 0; i < toPeers.size(); i++) toPeers.get(i).println(msgType + msgSeparator); 
+				
+				height = String.valueOf(blockExplorer.getBlockchainHeight());
+				for (int i = 0; i < toPeers.size(); i++) toPeers.get(i).println(msgType + msgSeparator + height); 
+				
 				try {
 					sleep(10);
 				} catch (InterruptedException e) {
@@ -535,7 +717,6 @@ public class NetworkNode {
 				}
 			}
 		}
-		
 	}
  	
 	
@@ -551,17 +732,28 @@ public class NetworkNode {
 	 */
 	class Miner extends Thread {
 		
+		private boolean suspended;
+		
 		public Miner() {
 			super("Miner");
+			suspended = false;
+		}
+		
+		public void setSuspended(boolean suspended) {
+			this.suspended = suspended;
+			if (!this.suspended) notify();
 		}
 		
 		public void run() {
 			try {
 				while (true) {
+//					while (suspended) wait();
 					mine();
 				}
 			} catch (DOMException e) {
 				e.printStackTrace();
+//			} catch (InterruptedException e) {
+//				e.printStackTrace();
 			}
 		}
 	}
@@ -580,11 +772,13 @@ public class NetworkNode {
 			
 			// Add block to the blockchain and broadcast to peers
 			block.setHeight(blockExplorer.getBlockchainHeight() + 1);
-			blockExplorer.extendBlockchain(block);
+			blockExplorer.addNewBlock(block);
+			blockExplorer.updateBlockchainFile();
 			broadcastBlock(block);
 			
 			// Update UTXO list
 			utxoExplorer.update(block);
+			utxoExplorer.updateUTXOFile();
 			
 			// Clear the memory pool
 			mempool.clear();
@@ -750,7 +944,7 @@ public class NetworkNode {
 	 * Broadcasts the given block to all peers.
 	 */
 	private void broadcastBlock(Block block) {
-		String msgType = "3";
+		String msgType = "5";
 		String message = block.toString();
 		for (int i = 0; i < toPeers.size(); i++) toPeers.get(i).println(msgType + msgSeparator + message); 
 	}
