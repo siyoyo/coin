@@ -97,6 +97,30 @@ public class BlockExplorer {
 		return blockNode;
 	}
 	
+	public TransactionReference getTransactionReferenceByAddress(String inputAddress) throws BlockExplorerException {
+		
+		NodeList outputAddresses = doc.getElementsByTagName("outputAddress");
+		Node outputAddressNode = getNodeFromList(outputAddresses, inputAddress);	
+		if (outputAddressNode == null) throw new BlockExplorerException("Input address not found");
+	
+		// refOut
+		Node outputNode = outputAddressNode.getParentNode();
+		Node outputIDNode = getDescendantNode(outputNode, "outputID");
+		String refOut = outputIDNode.getTextContent();
+		
+		// refTx
+		Node transactionNode = outputNode.getParentNode();
+		Node transactionIDNode = getDescendantNode(transactionNode, "txID");
+		String refTx = transactionIDNode.getTextContent();
+		
+		// refPoW
+		Node blockNode = getBlockNode(transactionNode);
+		Node powNode = getDescendantNode(blockNode, "pow");
+		String refPoW = powNode.getTextContent();
+		
+		return new TransactionReference(refPoW, refTx, refOut);
+	}
+	
 	/**
 	 * Returns the output address that is uniquely identified by the transaction reference.
 	 * @param reference transaction reference
@@ -468,6 +492,19 @@ public class BlockExplorer {
 			}
 		}
 		return longestMatch;
+	}
+	
+	@SuppressWarnings("serial")
+	public class BlockExplorerException extends Exception {
+		
+		public BlockExplorerException() {
+			super();
+		}
+		
+		public BlockExplorerException(String msg) {
+			super(msg);
+		}
+		
 	}
 	
 	/* -----------------------------------------------------------------

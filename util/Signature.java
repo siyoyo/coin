@@ -4,7 +4,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.SignatureException;
-import java.security.interfaces.RSAPrivateCrtKey;
+import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 
 public class Signature {
@@ -20,7 +20,7 @@ public class Signature {
 		}
 	}
 	
-	public byte[] sign(byte[] outputsInBytes, RSAPrivateCrtKey privateKey) throws InvalidKeyException, SignatureException {
+	public byte[] sign(byte[] outputsInBytes, RSAPrivateKey privateKey) throws InvalidKeyException, SignatureException {
 		signature.initSign(privateKey, new SecureRandom());
 		signature.update(outputsInBytes);
 		return signature.sign();

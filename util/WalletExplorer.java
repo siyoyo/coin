@@ -1,28 +1,29 @@
-package obj;
+package util;
 
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
-import java.security.interfaces.RSAPrivateCrtKey;
+import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
+
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-import util.BaseConverter;
-import util.SHA256;
-import util.XMLio;
 
-public class Wallet {
+public class WalletExplorer {
 	
-	public final static String WALLET = "dat/wallet.xml";
 	public final static String KEY_ALGORITHM = "RSA";
-	public Document doc;
 	
-	public Wallet() {
-		doc = XMLio.parse(WALLET);
+	private String filename;
+	private Document doc;
+	
+	public WalletExplorer(String filename) {
+		this.filename = filename;
+		doc = XMLio.parse(this.filename);
 		doc.getDocumentElement().normalize();
 	}
 	
@@ -76,7 +77,7 @@ public class Wallet {
 		keyNode.appendChild(publicNode);
 		
 		// Store private key
-		RSAPrivateCrtKey privateKey = (RSAPrivateCrtKey) keyPair.getPrivate();
+		RSAPrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();
 		byte[] encodedPrivateKey = privateKey.getEncoded();
 		String privateKeyAsString = BaseConverter.bytesDecToHex(encodedPrivateKey);
 		
@@ -90,7 +91,34 @@ public class Wallet {
 		keyNode.appendChild(amountNode);
 		
 		doc.getDocumentElement().appendChild(keyNode);
-		XMLio.write(WALLET, doc, doc.getDocumentElement());
+		XMLio.write(filename, doc, doc.getDocumentElement());
+	}
+	
+	
+	
+	public RSAPublicKey publicKey(String address) {
+		
+		Element keyElement = (Element) getKeyNode(address);
+		Node publicNode = keyElement.getElementsByTagName("public").item(0);
+		
+		String publicKeyAsString = publicNode.getTextContent();
+		
+		byte[] encodedPublicKey = BaseConverter.stringHexToDec(publicKeyAsString); 
+		X509EncodedKeySpec encodedPublicKeySpec = new X509EncodedKeySpec(encodedPublicKey);
+		
+		KeyFactory factory;
+		RSAPublicKey publicKey = null;
+		try {
+			factory = KeyFactory.getInstance(KEY_ALGORITHM);
+			publicKey = (RSAPublicKey) factory.generatePublic(encodedPublicKeySpec);
+		}  catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		} catch (InvalidKeySpecException e) {
+			e.printStackTrace();
+		}
+		
+		return publicKey;
+		
 	}
 	
 	/**
@@ -98,7 +126,7 @@ public class Wallet {
 	 * @param address hash of the public key string
 	 * @return RSA private key
 	 */
-	public RSAPrivateCrtKey privateKey(String address) {
+	public RSAPrivateKey privateKey(String address) {
 		
 		Element keyElement = (Element) getKeyNode(address);
 		Node privateNode = keyElement.getElementsByTagName("private").item(0);
@@ -109,10 +137,10 @@ public class Wallet {
 		PKCS8EncodedKeySpec encodedPrivateKeySpec = new PKCS8EncodedKeySpec(encodedPrivateKey);
 		
 		KeyFactory factory;
-		RSAPrivateCrtKey privateKey = null;
+		RSAPrivateKey privateKey = null;
 		try {
 			factory = KeyFactory.getInstance(KEY_ALGORITHM);
-			privateKey = (RSAPrivateCrtKey) factory.generatePrivate(encodedPrivateKeySpec);
+			privateKey = (RSAPrivateKey) factory.generatePrivate(encodedPrivateKeySpec);
 		}  catch (NoSuchAlgorithmException e) {
 			e.printStackTrace();
 		} catch (InvalidKeySpecException e) {
@@ -131,7 +159,7 @@ public class Wallet {
 		int updatedBalance = Integer.valueOf(balance) + amount;
 		amountNode.setTextContent(String.valueOf(updatedBalance));
 		
-		XMLio.write(WALLET, doc, doc.getDocumentElement());
+		XMLio.write(filename, doc, doc.getDocumentElement());
 	}
 	
 	/* -----------------------------------------------------------------

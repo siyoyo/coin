@@ -1,7 +1,7 @@
 package obj;
 
 import java.security.GeneralSecurityException;
-import java.security.interfaces.RSAPrivateCrtKey;
+import java.security.interfaces.RSAPrivateKey;
 
 import util.Signature;
 
@@ -14,14 +14,14 @@ import util.Signature;
 public class Input {
 	
 	private TransactionReference reference;
-	private RSAPrivateCrtKey senderPrivateKey;
+	private RSAPrivateKey senderPrivateKey;
 	private int inputID;
 	
 	public Input(TransactionReference reference) {
 		this.reference = reference;
 	}
 	
-	public Input(TransactionReference reference, RSAPrivateCrtKey privateKey) {
+	public Input(TransactionReference reference, RSAPrivateKey privateKey) {
 		this.reference = reference;
 		this.senderPrivateKey = privateKey;
 	}

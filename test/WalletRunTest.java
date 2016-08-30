@@ -7,9 +7,10 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.SignatureException;
-import java.security.interfaces.RSAPrivateCrtKey;
-import obj.Wallet;
+import java.security.interfaces.RSAPrivateKey;
+
 import util.BaseConverter;
+import util.WalletExplorer;
 
 public class WalletRunTest {
 	
@@ -22,12 +23,12 @@ public class WalletRunTest {
 			
 			KeyPair keyPair = generator.generateKeyPair();
 			
-			Wallet wallet = new Wallet();
+			WalletExplorer wallet = new WalletExplorer("dat/wallet.xml");
 			wallet.save(keyPair, "50");
 			
 			byte[] encoded = keyPair.getPublic().getEncoded();
 			String hex = BaseConverter.bytesDecToHex(encoded);
-			RSAPrivateCrtKey privateKey = wallet.privateKey(hex);
+			RSAPrivateKey privateKey = wallet.privateKey(hex);
 			
 			Signature signature = Signature.getInstance("SHA256withRSA");
 			String plaintext = "crypto";

@@ -66,11 +66,22 @@ public class Transaction {
 	}
 	
 	/**
-	 * Removes an input from the transaction
-	 * @param input An input from this transaction
+	 * Removes an input from the transaction.  For use in gui/InputsOutputs class.
+	 * @param inputAddress input address
+	 * @param blockExplorer block explorer
 	 */
-	public void removeInput(Input input) {
-		inputs.remove(input);
+	public void removeInput(String inputAddress, BlockExplorer blockExplorer) {
+		
+		Input input;
+		for (int i = 0; i < inputs.size(); i++) {
+			
+			input = inputs.get(i);
+			
+			if (blockExplorer.outputAddress(input.reference()).compareTo(inputAddress) == 0) {
+				inputs.remove(i);
+				break;
+			}
+		}
 	}
 	
 	/**
@@ -84,13 +95,68 @@ public class Transaction {
 	}
 	
 	/**
-	 * Removes an output from the transaction
-	 * @param output An output from this transaction
-	 * @throws InvalidKeySpecException 
-	 * @throws NoSuchAlgorithmException 
+	 * Removes an output from the transaction.  For use in the gui/InputsOutputs class.
+	 * @param outputAddress output address 
 	 */
-	public void removeOutput(Output output) {
-		outputs.remove(output);
+	public void removeOutput(String outputAddress) {
+		
+		System.out.println("number of outputs" + outputs.size());
+		
+		Output output;	
+		for (int i = 0; i < outputs.size(); i++) {
+			
+			output = outputs.get(i);
+			
+			if (output.outputAddress().compareTo(outputAddress) == 0) {
+				outputs.remove(i);
+				break;
+			}
+		}
+		
+		System.out.println("number of outputs" + outputs.size());
+	}
+	
+	/**
+	 * Returns a table of the inputs that has only one column:
+	 * <ul>
+	 * <li>input address</li>
+	 * </ul>
+	 * @param blockExplorer
+	 * @return table of inputs
+	 */
+	public String[][] inputsAsTable(BlockExplorer blockExplorer) {
+		
+		String[][] inTable = new String[inputs.size()][1];
+		Input input;
+		
+		for (int i = 0; i < inputs.size(); i++) {
+			input = inputs.get(i);
+			inTable[i][0] = blockExplorer.outputAddress(input.reference());
+		}
+		
+		return inTable;
+	}
+	
+	/**
+	 * Returns a table of the outputs that has two columns:
+	 * <ul>
+	 * <li>amount</li>
+	 * <li>output address</li>
+	 * </ul>
+	 * @return table of outputs
+	 */
+	public String[][] outputsAsTable() {
+		
+		String[][] outTable = new String[outputs.size()][2];
+		Output output;
+		
+		for (int i = 0; i < outputs.size(); i++) {
+			output = outputs.get(i);
+			outTable[i][0] = output.amount();
+			outTable[i][1] = output.outputAddress();
+		}
+		
+		return outTable;
 	}
 	
 	/**
@@ -111,6 +177,32 @@ public class Transaction {
 	public void initialiseSignatures(int size) {
 		signatures = new byte[size][];
 		signatures[0] = null;
+	}
+	
+	/**
+	 * Calculates the transaction fee.
+	 * @param blockExplorer block explorer
+	 */
+	public int calculateTransactionFee(BlockExplorer blockExplorer) throws TransactionException {
+		
+		TransactionReference reference;
+		Output output;
+		int sumInputs = 0, sumOutputs = 0, transactionFee;
+		
+		for (int i = 0; i < inputs.size(); i++) {
+			reference = inputs.get(i).reference();
+			sumInputs += Integer.valueOf(blockExplorer.transactionAmount(reference));
+		}
+		
+		for (int j = 0 ; j < outputs.size(); j++) {
+			output = outputs.get(j);
+			sumOutputs += Integer.valueOf(output.amount());
+		}
+		
+		transactionFee = sumInputs - sumOutputs;
+		
+		if (transactionFee < 0) throw new TransactionException("Negative transaction fee");
+		else return transactionFee;
 	}
 
 	/**
@@ -271,35 +363,5 @@ public class Transaction {
 			super(msg);
 		}
 	}
-	
-	/* -----------------------------------------------------------------
-	 * 							Private methods
-	 * -----------------------------------------------------------------
-	 */
-	
-	/*
-	 * Calculates the transaction fee.
-	 */
-	private int calculateTransactionFee(BlockExplorer blockExplorer) throws TransactionException {
-		
-		TransactionReference reference;
-		Output output;
-		int sumInputs = 0, sumOutputs = 0, transactionFee;
-		
-		for (int i = 0; i < inputs.size(); i++) {
-			reference = inputs.get(i).reference();
-			sumInputs += Integer.valueOf(blockExplorer.transactionAmount(reference));
-		}
-		
-		for (int j = 0 ; j < outputs.size(); j++) {
-			output = outputs.get(j);
-			sumOutputs += Integer.valueOf(output.amount());
-		}
-		
-		transactionFee = sumInputs - sumOutputs;
-		
-		if (transactionFee < 0) throw new TransactionException("Negative transaction fee");
-		else return transactionFee;
-	}
-		
+			
 }

@@ -1,7 +1,7 @@
 package test;
 
 import java.security.KeyPair;
-import java.security.interfaces.RSAPrivateCrtKey;
+import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 
 import org.w3c.dom.DOMException;
@@ -10,9 +10,9 @@ import obj.Output;
 import obj.Transaction;
 import p2p.NetworkNode;
 import obj.TransactionReference;
-import obj.Wallet;
 import util.BlockExplorer;
 import util.RSA512;
+import util.WalletExplorer;
 
 public class NetworkNodeTest {
 	
@@ -25,11 +25,11 @@ public class NetworkNodeTest {
 			
 			String address = explorer.outputAddress(reference);
 			
-			Wallet wallet = new Wallet();
-			RSAPrivateCrtKey privateKey = wallet.privateKey(address);
+			WalletExplorer wallet = new WalletExplorer("dat/wallet.xml");
+			RSAPrivateKey privateKey = wallet.privateKey(address);
 			Input input = new Input(reference, privateKey);
 			
-			RSAPrivateCrtKey wrongPrivateKey = (RSAPrivateCrtKey) RSA512.generateKeyPair().getPrivate();
+			RSAPrivateKey wrongPrivateKey = (RSAPrivateKey) RSA512.generateKeyPair().getPrivate();
 			Input wrongInput = new Input(reference, wrongPrivateKey);
 			
 			KeyPair outputKeyPair = RSA512.generateKeyPair(); 
@@ -43,7 +43,7 @@ public class NetworkNodeTest {
 			tx1.addOutput(output);
 			
 			NetworkNode node = new NetworkNode();
-			node.initialiseExplorers("dat/blockchain.xml", "dat/utxo.xml");
+			node.initialiseExplorers("dat/blockchain.xml", "dat/utxo.xml", "dat/wallet.xml");
 			node.updateMempool(tx1);
 			node.updateMempool(tx2);
 			node.mine();
