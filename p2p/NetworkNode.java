@@ -5,19 +5,20 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Scanner;
 
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
+
+import gui.TransactionalNode;
 import obj.Block;
 import obj.BlockHeader;
 import obj.BlockHeader.BlockHeaderException;
@@ -33,7 +34,6 @@ import util.MerkleTree.MerkleTreeException;
 import util.RSA512;
 import util.UTXOExplorer;
 import util.WalletExplorer;
-import util.XMLio;
 
 /**
  * <b>References</b>
@@ -53,7 +53,11 @@ public class NetworkNode {
 	public final static String EXT = ".xml";
 	
 	public final static int REWARD = 50;
-	public static String difficulty = "0000000fffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+	public static String difficulty = "000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+	
+	private String hostname;
+	private int port;
+	private ServerSocket server;
 	
 	private ArrayList<Peer> peers;
 	private ArrayList<PrintWriter> toPeers;
@@ -78,37 +82,92 @@ public class NetworkNode {
 	
 	public static void main (String[] args) {
 		
-		int port = Integer.parseInt(args[0]);
 		NetworkNode node = new NetworkNode();
-
-		// Start server
-		ServerSocket server = null;
-		try {
-			server = new ServerSocket(port);
-		} catch (IOException e) {
-			e.printStackTrace();
+		
+		// Parse arguments
+		if (args[0].compareTo("-t") == 0) /*Launch TransactionalNode*/ {
+			
+			if (args.length != 2) {
+				System.err.println("Arguments: [-t (optional)] [own port]");
+				System.exit(0);
+			} else {
+				
+				// Start server
+				node.port = Integer.valueOf(args[1]);
+				try {
+					node.server = new ServerSocket(node.port);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				node.hostname = node.server.getInetAddress().getHostAddress();
+				
+				// Launch TransactionalNode
+				TransactionalNode.getInstance(node.hostname, node.port);
+			}
 		}
 		
-		String hostname = server.getInetAddress().getHostName();
-		System.out.println("I am " + hostname + " " + port);
+		else /*Do not launch TransactionalNode*/ {
+			
+			if (args.length != 1) {
+				System.err.println("Arguments: [-t (optional)] [own port]");
+				System.exit(0);
+			} else {
+				
+				// Start server
+				node.port = Integer.valueOf(args[0]);
+				try {
+					node.server = new ServerSocket(node.port);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				node.hostname = node.server.getInetAddress().getHostAddress();
+			}
+		}
+		
+		System.out.println(LocalDateTime.now() + " I am " + node.hostname + " " + node.port);
 		
 		// Keep listening for connection requests
-		SocketListener socketListener = node.new SocketListener(server);
+		SocketListener socketListener = node.new SocketListener(node.server);
 		socketListener.start();
 		
 		// Initialize explorers
 		node.initialiseExplorers(
-				BLOCKCHAIN + "_" + hostname + "_" + port + EXT, 
-				UTXO + "_" + hostname + "_" + port + EXT,
-				WALLET + "_" + hostname + "_" + port + EXT);
+				BLOCKCHAIN + "_" + node.hostname + "_" + node.port + EXT,
+				UTXO + "_" + node.hostname + "_" + node.port + EXT,
+				WALLET + "_" + node.hostname + "_" + node.port + EXT);
 		
-		// Find peers TODO
-		for (int i = 0; i < 3; i++) node.findPeer(hostname, port);
+		// Connect to peers
+		Scanner robot = new Scanner(System.in);
+		String response, peerHostname;
+		int peerPort;
+		Socket socket;
 		
-		for (int i = 0; i < node.peers.size(); i++) {
-			Peer peer = node.peers.get(i);
-			System.out.println("peer " + i + ": " + peer.hostname() + " port " + peer.port());
+		System.out.print("Connect to peer? (Y/N): ");
+		response = robot.nextLine();
+		
+		while (response.compareTo("Y") == 0 || response.compareTo("y") == 0) {
+			
+			System.out.print("Hostname: ");
+			peerHostname = robot.nextLine();
+			
+			System.out.print("Port: ");
+			peerPort = Integer.valueOf(robot.nextLine());
+			
+			try {
+				socket = new Socket(peerHostname, peerPort);
+				node.connect(socket);
+				System.out.println("Connected to " + peerHostname + " " + peerPort);
+			} catch (UnknownHostException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			
+			System.out.print("Connect to peer? (Y/N): ");
+			response = robot.nextLine();
 		}
+		
+		robot.close();
 		
 		// Start listening to peers
 		BlockListener listener = node.new BlockListener();
@@ -140,58 +199,6 @@ public class NetworkNode {
 		walletExplorer = new WalletExplorer(walletFilename);
 	}
 	
-	/*
-	 * Connects to a new peer that is not already found in the list of peers
-	 * and is not self.
-	 */
-	private void findPeer(String thisHostname, int thisPort) {
-		
-		Document doc = XMLio.parse(PEERS);
-		doc.getDocumentElement().normalize();
-		
-		NodeList peerNodes = doc.getElementsByTagName("peer");
-		Element peerElement;
-		String hostname = null;
-		int port = -1;
-		
-		int  randomIndex;
-		boolean self = true, notUnique = false;
-		
-		while (self || notUnique) {
-			
-			randomIndex = ThreadLocalRandom.current().nextInt(peerNodes.getLength());
-			
-			peerElement = (Element) peerNodes.item(randomIndex);
-			hostname = peerElement.getElementsByTagName("hostname").item(0).getTextContent();
-			port = Integer.valueOf(peerElement.getElementsByTagName("port").item(0).getTextContent());
-			
-			self = isSame(hostname, thisHostname, port, thisPort);
-			
-			Peer peer;
-			for (int i = 0; i < peers.size(); i++) {
-				peer = peers.get(i);
-				notUnique = isSame(hostname, peer.hostname(), port, peer.port());
-				if (notUnique) break;
-			}
-		}
-		
-		Socket socket;
-		try {
-			socket = new Socket(hostname, port);
-			connect(socket);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-	
-	/*
-	 * Returns true if the hostname and port both match the provided hostname and port.
-	 */
-	private boolean isSame(String hostname1, String hostname2, int port1, int port2) {
-		if ((hostname1.compareTo(hostname2) == 0) & (port1 == port2)) return true;
-		return false;
-	}
-
 	/**
 	 * Adds a transaction to the memory pool.
 	 * @param transaction
@@ -219,7 +226,9 @@ public class NetworkNode {
 		}
 		
 		public void run() {
+			System.out.println(LocalDateTime.now() + " SocketListener thread started");
 			while (true) {
+				if (this.isInterrupted()) System.out.println("SocketListener is interrupted");
 				try {
 					Socket socket = server.accept();
 					connect(socket);
@@ -265,6 +274,8 @@ public class NetworkNode {
 		
 		public void run() {
 			
+			System.out.println(LocalDateTime.now() + " BlockListener thread started");
+			
 			BufferedReader reader;
 			Peer peer;
 			String message, msgType, msgBody, responseMsgType, response;
@@ -273,7 +284,7 @@ public class NetworkNode {
 			int iHeight;
 			
 			while (true) {
-				
+				if (this.isInterrupted()) System.out.println("BlockListener is interrupted");
 				for (int i = 0; i < peers.size(); i++) {
 					
 					peer = peers.get(i);
@@ -285,14 +296,15 @@ public class NetworkNode {
 					
 					try {
 						message = reader.readLine();
-						split = message.split(msgSeparator);
-						msgType = split[0];
-						if (split.length > 1) msgBody = split[1];
 					} catch (IOException e){
 						e.printStackTrace();
 					}
 					
 					if (message != null) {
+						
+						split = message.split(msgSeparator);
+						msgType = split[0];
+						if (split.length > 1) msgBody = split[1];
 						
 						switch (msgType) {
 						
@@ -328,7 +340,6 @@ public class NetworkNode {
 								
 								// If hash at height is correct, set ConsensusBuilder's max consensus height
 								if (same.compareTo("true") == 0) {
-									System.out.println("iHeight: " + iHeight);
 									consensusBuilder.setMaxConsensusHeight(iHeight);
 									break;
 								}
@@ -378,7 +389,9 @@ public class NetworkNode {
 							}
 							
 							case "5": /*Block broadcast*/ {
+								
 								Block block = null;
+								
 								try {
 									block = readBlock(msgBody, peer.hostname() + " port " + peer.port());
 								} catch (Exception e) {
@@ -390,17 +403,26 @@ public class NetworkNode {
 									blockExplorer.updateBlockchainFile();
 									broadcast("5", msgBody);
 								}
+								
 								break;
 							}
 							
 							case "6": /*Transaction broadcast*/ {
+								
 								System.out.println("Receiving transaction from " + peer.hostname() + " port " + peer.port());
+								
 								try {
+									
 									Transaction transaction = readTransaction(msgBody);
+									
 									if (transaction.validate(blockExplorer, utxoExplorer)) {
+										
 										mempool.add(transaction);
+										peer.writer().println("OK");
 										broadcast("6", msgBody);
-									}
+										
+									} else peer.writer().println("FAIL");
+									
 								} catch (Exception e) {
 									e.printStackTrace();
 								}
@@ -506,7 +528,7 @@ public class NetworkNode {
 		
 		parts = tx.split("END");
 		if (numberOfInputs > 0) {
-			if (parts.length != 3) throw new MalformedTransactionException();
+			if (parts.length != 4) throw new MalformedTransactionException();
 			else {	
 				inputs = parts[0];
 				outputs = parts[1];
@@ -539,10 +561,10 @@ public class NetworkNode {
 				if (sigs.length != ins.length) throw new MalformedTransactionException("Number of signatures does not match number of inputs");
 				else {
 					
-					transaction.initialiseSignatures(sigs.length);
+					transaction.initialiseSignatures(sigs.length + 1);
 					
 					for (int k = 0; k < sigs.length; k++) 
-						transaction.signatures()[k] = BaseConverter.stringHexToDec(sigs[k]);
+						transaction.signatures()[k + 1] = BaseConverter.stringHexToDec(sigs[k]);
 				}
 			}
 		} else /* numberOfInputs = 0 */ {
@@ -613,7 +635,18 @@ public class NetworkNode {
 		}
 		
 		public void run() {
-			while (true) syncChain();
+			
+			System.out.println(LocalDateTime.now() + " ConsensusBuilder thread started");
+			
+			while (true) {
+				if (this.isInterrupted()) System.out.println("ConsensusBuilder is interrupted");
+				syncChain();
+				try {
+					sleep(60000);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
 		}
 		
 		private void setMaxConsensusHeight(int maxConsensusHeight) {
@@ -724,16 +757,18 @@ public class NetworkNode {
 		
 		public void run() {
 			
+			System.out.println(LocalDateTime.now() + " Pong thread started");
+			
 			String msgType = "0";
 			String height;
 			
 			while (true) {
-				
+				if (this.isInterrupted()) System.out.println("Pong is interrupted");
 				height = String.valueOf(blockExplorer.getBlockchainHeight());
 				for (int i = 0; i < toPeers.size(); i++) toPeers.get(i).println(msgType + msgSeparator + height); 
 				
 				try {
-					sleep(1000);
+					sleep(10000);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
@@ -759,7 +794,11 @@ public class NetworkNode {
 		}
 		
 		public void run() {
-			while (true) mine();
+			System.out.println(LocalDateTime.now() + " Miner thread started");
+			while (true) {
+				if (this.isInterrupted()) System.out.println("Miner is interrupted");
+				mine();
+			}
 		}
 	}
 	
@@ -784,8 +823,10 @@ public class NetworkNode {
 			utxoExplorer.update(block);
 			utxoExplorer.updateUTXOFile();
 			
-			// Clear the memory pool
-			mempool.clear();
+			// Update wallet balance
+			TransactionReference reference = new TransactionReference(block.pow(), "1", "1");
+			String address = blockExplorer.outputAddress(reference);
+			walletExplorer.updateBalance(address, REWARD);
 			
 		} // Block is discarded if it is not the latest block
 	}
@@ -798,7 +839,7 @@ public class NetworkNode {
 	 * and successfully finding a solution for the proof-of-work hash.
 	 */
 	private Block makeBlock(BlockExplorer blockExplorer) {
-
+		
 		// Clone memory pool
 		ArrayList<Transaction> transactions = cloneMempool();
 		
@@ -813,7 +854,7 @@ public class NetworkNode {
 		// (cannot be spent as there is no valid transaction reference)
 		KeyPair newKeyPair = RSA512.generateKeyPair();
 		RSAPublicKey publicKey = (RSAPublicKey) newKeyPair.getPublic();
-		walletExplorer.save(newKeyPair, String.valueOf(totalReward));
+		walletExplorer.save(newKeyPair, "0");
 		
 		// Create mint transaction
 		Output gold = new Output(publicKey, String.valueOf(totalReward));
@@ -858,13 +899,12 @@ public class NetworkNode {
 		Transaction tx;
 		ArrayList<Input> inputs;
 		Input input;
-		String txID, inputID;
+		String inputID;
 		
 		// Check for double-spending in same transaction or group of transactions
 		for (int i = 0; i < transactions.size(); i++) {
 			
 			tx = transactions.get(i);
-			txID = tx.txID();
 			
 			inputs = tx.inputs();
 			for (int j = 0; j < inputs.size(); j++) {
@@ -877,21 +917,21 @@ public class NetworkNode {
 				
 				if (seen) {
 					transactions.remove(i);
-					System.out.println("Input " + txID + "." + inputID + " is invalid and has been removed");
+					System.out.println("Input " + i + "." + inputID + " is invalid and has been removed");
 				}
 				else references.add(reference);
 			}
 		}
 		
-		// Finalize transactions
+		// Validate transactions
+		boolean validTransaction = false;
+		
 		for ( int k = 0; k < transactions.size(); k++) {
-			
 			tx = transactions.get(k);
-			txID = tx.txID();
-			
-			System.out.println("Finalising transaction " + txID + " of " + transactions.size() + " ...");
+			System.out.println("Validating transaction " + (k + 1) + " of " + transactions.size() + " ...");
 			try {
-				tx.finalise(blockExplorer, utxoExplorer);
+				validTransaction = tx.validate(blockExplorer, utxoExplorer);
+				if (!validTransaction) transactions.remove(tx);
 			} catch (TransactionException e) {
 				transactions.remove(tx);
 				e.printStackTrace();

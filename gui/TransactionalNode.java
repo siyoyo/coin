@@ -3,23 +3,17 @@ package gui;
 import java.awt.Color;
 import java.awt.Container;
 import java.awt.Dimension;
-import java.awt.EventQueue;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Image;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.WindowEvent;
-import java.io.IOException;
-import java.net.Socket;
-import java.net.UnknownHostException;
 
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 
 import obj.Transaction;
 
@@ -28,57 +22,28 @@ public class TransactionalNode extends JFrame {
 
 	private final static Insets STANDARDINSETS = new Insets(5, 5, 5, 5);
 	
-	private Socket socket;
+	private static TransactionalNode instance = null;
+	
 	private Transaction transaction;
+	private String hostname;
+	private int port;
 	
 	// GUI elements
-	private JFrame small;
 	private Container panel;
 	private JLabel lDisco;
 	private JButton bTransaction;
 	private GridBagConstraints clDisco, cbTransaction;
 	private ButtonListener bListener;
 
-	/**
-	 * Launch the application.
-	 */
-	public static void main(String[] args) {
-		EventQueue.invokeLater(new Runnable() {
-			public void run() {
-				
-				if (args.length != 2) {
-					System.err.println("Please provide two arguments: hostname and port of the NetworkNode to connect to");
-					System.exit(1);
-				}
-				
-				try {
-					new TransactionalNode(args);
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}
-		});
+	public static TransactionalNode getInstance(String hostname, int port) {
+		if (instance == null) instance = new TransactionalNode(hostname, port);
+		return instance;
 	}
-
-	public TransactionalNode(String[] args) {
+	
+	private TransactionalNode(String hostname, int port) {
 		
-		small = new JFrame();
-		
-		try {
-			socket = new Socket(args[0], Integer.valueOf(args[1]));
-		} catch (NumberFormatException e) {
-			JOptionPane.showMessageDialog(small, "Invalid port number");
-			e.printStackTrace();
-			System.exit(0);
-		} catch (UnknownHostException e) {
-			JOptionPane.showMessageDialog(small, "Invalid host name");
-			e.printStackTrace();
-			System.exit(0);
-		} catch (IOException e) {
-			JOptionPane.showMessageDialog(small, "Unknown error.\nPlease try re-launching\nthe application.");
-			e.printStackTrace();
-			System.exit(0);
-		}
+		this.hostname = hostname;
+		this.port = port;
 		
 		this.setMinimumSize(new Dimension(500, 500));
 		this.getContentPane().setBackground(Color.WHITE);
@@ -105,12 +70,11 @@ public class TransactionalNode extends JFrame {
 	
 	private class ButtonListener implements ActionListener {
 
-		@Override
+		@Override // TODO
 		public void actionPerformed(ActionEvent e) {
 			transaction = new Transaction();
-			InputsOutputs.getInstance(socket, transaction);
-			JFrame frame = (JFrame) e.getSource(); 
-			frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
+			InputsOutputs.getInstance(transaction, hostname, port);
+			instance.dispose();
 		}
 	}
 	

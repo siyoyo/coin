@@ -173,6 +173,7 @@ public class WalletExplorer {
 		
 		for (int i = 0; i < addressNodes.getLength(); i++) {
 			addressNode = addressNodes.item(i);
+			
 			if (addressNode.getTextContent().compareTo(address) == 0) {
 				keyNode = addressNode.getParentNode();
 				return keyNode;

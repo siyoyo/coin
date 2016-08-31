@@ -8,7 +8,9 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.security.interfaces.RSAPrivateKey;
@@ -37,19 +39,19 @@ import util.WalletExplorer;
 @SuppressWarnings("serial")
 public class InputsOutputs extends JFrame {
 	
-	public final static String BLOCKCHAIN = "dat/blockchain.xml";
-	public final static String UTXO = "dat/utxo.xml";
-	public final static String WALLET = "dat/wallet.xml";
+	public final static String BLOCKCHAIN = "dat/blockchain";
+	public final static String UTXO = "dat/utxo";
+	public final static String WALLET = "dat/wallet";
+	public final static String EXT = ".xml";
 	
 	private static InputsOutputs instance = null;
 	private Transaction transaction;
+	private String hostname;
+	private int port;
 	
 	private BlockExplorer blockExplorer;
 	private UTXOExplorer utxoExplorer;
 	private WalletExplorer walletExplorer;
-	
-	private Socket socket;
-	private PrintWriter writer;
 	
 	private String msgType = "6";
 	private String msgSeparator = "MSG";
@@ -86,17 +88,21 @@ public class InputsOutputs extends JFrame {
 		clFee, cbFee, cbTransaction, clConfirmation, csHorizontal, csVertical;
 	
 	
-	public static InputsOutputs getInstance(Socket socket, Transaction transaction) {
+	public static InputsOutputs getInstance(Transaction transaction, String hostname, int port) {
 		if (instance == null) {
 			instance = new InputsOutputs();
 			instance.transaction = transaction;
-			instance.socket = socket;
-			instance.initialiseExplorers(BLOCKCHAIN, UTXO, WALLET);
+			instance.hostname = hostname;
+			instance.port = port;
+			instance.initialiseExplorers(
+					BLOCKCHAIN + "_" + hostname + "_" + port + EXT, 
+					UTXO + "_" + hostname + "_" + port + EXT, 
+					WALLET + "_" + hostname + "_" + port + EXT);
 		}
 		return instance;
 	}
 	
-	public InputsOutputs() {
+	private InputsOutputs() {
 		
 		panel = this.getContentPane();
 		panel.setLayout(new GridBagLayout());
@@ -104,6 +110,9 @@ public class InputsOutputs extends JFrame {
 		this.setMinimumSize(new Dimension(800, 400));
 		this.getContentPane().setBackground(Color.WHITE);
 		this.setTitle("New discoCoin Transaction");
+		
+		// Error pop-up window
+		small = new JFrame();
 		
 		// ButtonListener
 		bListener = new ButtonListener();
@@ -298,7 +307,7 @@ public class InputsOutputs extends JFrame {
 		int[] rows = tbOutputs.getSelectedRows();
 		
 		for (int i = 0; i < rows.length; i++)
-			transaction.removeOutput(currentOutputs[rows[i]][0]);
+			transaction.removeOutput(currentOutputs[rows[i]][1]);
 		
 		refreshOutputs();
 	}
@@ -308,7 +317,7 @@ public class InputsOutputs extends JFrame {
 		try {
 			fee = "Fee is " + String.valueOf(transaction.calculateTransactionFee(blockExplorer) + " discoCoins");
 		} catch (TransactionException e) {
-			e.printStackTrace();
+			fee = e.getMessage();
 		}
 		lFee.setText(fee);
 	}
@@ -316,14 +325,31 @@ public class InputsOutputs extends JFrame {
 	private void confirmTransaction() {
 		
 		try {
+			
 			transaction.finalise(blockExplorer, utxoExplorer);
 			
-			writer = new PrintWriter(socket.getOutputStream(), true);
+			Socket socket = new Socket(hostname, port);
+			PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
+			BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			
 			String message = transaction.toString();
 			writer.println(msgType + msgSeparator + message);
+			System.out.println("Sent: " + msgType + msgSeparator + message);
+			String response;
 			
-			lConfirmation.setText("Transaction sent");
+			while ((response = reader.readLine()) != null) {
+				switch (response) {
+					case "OK": {
+						lConfirmation.setText("Transaction sent");
+						break;
+					}
+					case "FAIL": {
+						lConfirmation.setText("Transmission failed.  Re-transmitting...");
+						writer.println(msgType + msgSeparator + message);
+						break;
+					}
+				}
+			}
 			
 		} catch (TransactionException e) {
 			JOptionPane.showMessageDialog(small, e);

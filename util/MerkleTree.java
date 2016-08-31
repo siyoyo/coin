@@ -21,6 +21,7 @@ public class MerkleTree {
 	 */
 	public static String getRoot(ArrayList<Transaction> transactions) {
 		int numberOfLeaves = countLeaves(transactions.size());	
+		System.out.println("number of leaves: " + numberOfLeaves);
 		return buildTree(transactions, numberOfLeaves);
 	}
 	
@@ -37,7 +38,7 @@ public class MerkleTree {
 		else throw new MerkleTreeException("Root does not match transactions");
 	}
 
-	@SuppressWarnings("serial") // TODO
+	@SuppressWarnings("serial")
 	public static class MerkleTreeException extends Exception {
 		
 		public MerkleTreeException() {
@@ -65,13 +66,13 @@ public class MerkleTree {
 	}
 	
 	/*
-	 * Returns the root of the Merkle tree.  ***Note that the array list of hashes is 0-based.***
+	 * Returns the root of the Merkle tree.
 	 */
 	private static String buildTree(ArrayList<Transaction> transactions, int numberOfLeaves) {
 		
 		int numberOfTransactions = transactions.size();
 		String txAsString;
-		
+		System.out.println("merkle tree has " + transactions.size() + " transactions");
 		SHA256 sha256 = new SHA256();
 		ArrayList<String> hashes = new ArrayList<String>();
 		String hash = null;
@@ -88,8 +89,8 @@ public class MerkleTree {
 		}
 			
 		// Add the last real transaction leaf to the tree until there are enough total leaves 
-		for (int leaf = numberOfTransactions; leaf <= numberOfLeaves; leaf++) hashes.add(hash);
-		
+		for (int leaf = numberOfTransactions; leaf < numberOfLeaves; leaf++) hashes.add(hash);
+		System.out.println("hashes size: " + hashes.size());
 		while (hashes.size() > 1) hashes = fold(sha256, hashes);
 		
 		return hashes.get(0);

@@ -1,5 +1,7 @@
 package obj;
 
+import java.time.LocalDateTime;
+
 import util.SHA256;
 
 /**
@@ -34,7 +36,7 @@ public class BlockHeader {
 		
 		while (result.compareTo(this.difficulty) > 0) result = tryNonce(++nonce);
 		
-		System.out.println(nonce + "\t" + result);
+		System.out.println(LocalDateTime.now() + " " + nonce + " " + result);
 		return result;
 	}
 	

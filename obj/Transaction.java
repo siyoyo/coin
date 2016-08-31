@@ -100,7 +100,7 @@ public class Transaction {
 	 */
 	public void removeOutput(String outputAddress) {
 		
-		System.out.println("number of outputs" + outputs.size());
+		System.out.println("number of outputs (before): " + outputs.size());
 		
 		Output output;	
 		for (int i = 0; i < outputs.size(); i++) {
@@ -113,7 +113,7 @@ public class Transaction {
 			}
 		}
 		
-		System.out.println("number of outputs" + outputs.size());
+		System.out.println("number of outputs (after): " + outputs.size());
 	}
 	
 	/**
