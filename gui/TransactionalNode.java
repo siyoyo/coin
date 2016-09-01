@@ -35,6 +35,11 @@ public class TransactionalNode extends JFrame {
 	private GridBagConstraints clDisco, cbTransaction;
 	private ButtonListener bListener;
 
+	public static void main(String[] args) {
+		if (args.length == 2) TransactionalNode.getInstance(args[0], Integer.valueOf(args[1]));
+		else System.out.println("Arguments: [hostname] [port]");
+	}
+	
 	public static TransactionalNode getInstance(String hostname, int port) {
 		if (instance == null) instance = new TransactionalNode(hostname, port);
 		return instance;

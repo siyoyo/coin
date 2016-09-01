@@ -15,6 +15,7 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.time.LocalDateTime;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -334,7 +335,7 @@ public class InputsOutputs extends JFrame {
 			
 			String message = transaction.toString();
 			writer.println(msgType + msgSeparator + message);
-			System.out.println("Sent: " + msgType + msgSeparator + message);
+			System.out.println(LocalDateTime.now() + " Sent: " + msgType + msgSeparator + message);
 			String response;
 			
 			while ((response = reader.readLine()) != null) {

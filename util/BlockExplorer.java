@@ -1,6 +1,7 @@
 package util;
 
 import java.security.interfaces.RSAPublicKey;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 
 import org.w3c.dom.DOMException;
@@ -40,7 +41,7 @@ public class BlockExplorer {
 	 * Returns the current height of the blockchain.
 	 * @return current height
 	 */
-	public int getBlockchainHeight() {
+	public int getBlockchainHeight() throws NullPointerException {
 		return getBlocks().getLength();
 	}
 	
@@ -289,7 +290,7 @@ public class BlockExplorer {
 		Node blockNode = createNewBlockNode(block);
 		doc.getDocumentElement().appendChild(blockNode);
 		
-		System.out.println("Added new block " + block.pow());
+		System.out.println(LocalDateTime.now() + " Added new block " + block.pow());
 	}
 	
 	/**

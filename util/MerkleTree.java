@@ -20,8 +20,7 @@ public class MerkleTree {
 	 * @return root of the Merkle tree of transactions, including the mint transaction
 	 */
 	public static String getRoot(ArrayList<Transaction> transactions) {
-		int numberOfLeaves = countLeaves(transactions.size());	
-		System.out.println("number of leaves: " + numberOfLeaves);
+		int numberOfLeaves = countLeaves(transactions.size());
 		return buildTree(transactions, numberOfLeaves);
 	}
 	
@@ -72,7 +71,6 @@ public class MerkleTree {
 		
 		int numberOfTransactions = transactions.size();
 		String txAsString;
-		System.out.println("merkle tree has " + transactions.size() + " transactions");
 		SHA256 sha256 = new SHA256();
 		ArrayList<String> hashes = new ArrayList<String>();
 		String hash = null;
@@ -90,7 +88,6 @@ public class MerkleTree {
 			
 		// Add the last real transaction leaf to the tree until there are enough total leaves 
 		for (int leaf = numberOfTransactions; leaf < numberOfLeaves; leaf++) hashes.add(hash);
-		System.out.println("hashes size: " + hashes.size());
 		while (hashes.size() > 1) hashes = fold(sha256, hashes);
 		
 		return hashes.get(0);

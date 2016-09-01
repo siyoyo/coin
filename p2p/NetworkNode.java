@@ -156,7 +156,7 @@ public class NetworkNode {
 			try {
 				socket = new Socket(peerHostname, peerPort);
 				node.connect(socket);
-				System.out.println("Connected to " + peerHostname + " " + peerPort);
+				System.out.println(LocalDateTime.now() + " Connected to " + peerHostname + " " + peerPort);
 			} catch (UnknownHostException e) {
 				e.printStackTrace();
 			} catch (IOException e) {
@@ -228,11 +228,11 @@ public class NetworkNode {
 		public void run() {
 			System.out.println(LocalDateTime.now() + " SocketListener thread started");
 			while (true) {
-				if (this.isInterrupted()) System.out.println("SocketListener is interrupted");
+				if (this.isInterrupted()) System.out.println(LocalDateTime.now() + " SocketListener is interrupted");
 				try {
 					Socket socket = server.accept();
 					connect(socket);
-					System.out.println("Connection received from " + socket.getInetAddress().getHostName() + " " + socket.getPort());
+					System.out.println(LocalDateTime.now() + " Connection received from " + socket.getInetAddress().getHostName() + " " + socket.getPort());
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -284,20 +284,24 @@ public class NetworkNode {
 			int iHeight;
 			
 			while (true) {
-				if (this.isInterrupted()) System.out.println("BlockListener is interrupted");
+				
+				if (this.isInterrupted()) System.out.println(LocalDateTime.now() + " BlockListener is interrupted");
+				
 				for (int i = 0; i < peers.size(); i++) {
 					
-					peer = peers.get(i);
-					reader = peer.reader();
-					
+					peer = null;
 					message = null;
 					msgType = null;
 					msgBody = null;
 					
-					try {
-						message = reader.readLine();
-					} catch (IOException e){
-						e.printStackTrace();
+					if (peers.get(i) != null) {
+						peer = peers.get(i);
+						reader = peer.reader();
+						try {
+							message = reader.readLine();
+						} catch (IOException e) {
+							e.printStackTrace();
+						} 
 					}
 					
 					if (message != null) {
@@ -441,7 +445,7 @@ public class NetworkNode {
 	 */
 	private Block readBlock(String string, String peer) throws MalformedTransactionException, BlockHeaderException, MerkleTreeException, TransactionException {
 		
-		System.out.println("Receiving block from " + peer);
+		System.out.println(LocalDateTime.now() + " Receiving block from " + peer);
 		
 		String[] sections = string.split("HEAD");
 		String header = sections[0];
@@ -465,7 +469,7 @@ public class NetworkNode {
 		String[] numTx = _header.split("NUM");
 		int numberOfTransactions = Integer.valueOf(numTx[0]);
 		String _numTx = numTx[1];
-		
+		System.out.println("Block header read");
 		// Transactions
 		String[] txs = _numTx.split("TX");
 		if (txs.length != numberOfTransactions) throw new MalformedTransactionException("Mismatched number of transactions");
@@ -474,15 +478,16 @@ public class NetworkNode {
 		Transaction transaction;
 		for (int i = 0; i < numberOfTransactions; i++) {
 			transaction = readTransaction(txs[i]);
+			System.out.println("Read transaction " + i + " of " + numberOfTransactions);
 			transactions.add(transaction);
 		}
 		
 		Block reconstructedBlock = new Block(blockHeader, pow, transactions);
 		reconstructedBlock.setHeight(height);
-		System.out.println("Block " + reconstructedBlock.pow() + " received and reconstructed: "+ (reconstructedBlock.toString().compareTo(string) == 0));
+		System.out.println(LocalDateTime.now() + " Block " + reconstructedBlock.pow() + " received and reconstructed: "+ (reconstructedBlock.toString().compareTo(string) == 0));
 		
 		boolean validBlock = reconstructedBlock.validate(blockExplorer, utxoExplorer);
-		System.out.println("Block " + reconstructedBlock.pow() + " is valid: " + validBlock);
+		System.out.println(LocalDateTime.now() + " Block " + reconstructedBlock.pow() + " is valid: " + validBlock);
 		
 		return reconstructedBlock;
 	}
@@ -622,8 +627,7 @@ public class NetworkNode {
 	 */
 	
 	/**
-	 * Periodically checks the longest chain
-	 *
+	 * Periodically checks for the longest chain and syncs to it.
 	 */
 	class ConsensusBuilder extends Thread {
 		
@@ -639,7 +643,7 @@ public class NetworkNode {
 			System.out.println(LocalDateTime.now() + " ConsensusBuilder thread started");
 			
 			while (true) {
-				if (this.isInterrupted()) System.out.println("ConsensusBuilder is interrupted");
+				if (this.isInterrupted()) System.out.println(LocalDateTime.now() + " ConsensusBuilder is interrupted");
 				syncChain();
 				try {
 					sleep(60000);
@@ -651,7 +655,6 @@ public class NetworkNode {
 		
 		private void setMaxConsensusHeight(int maxConsensusHeight) {
 			this.maxConsensusHeight = maxConsensusHeight;
-			System.out.println("max consensus height: " + this.maxConsensusHeight);
 		}
 		
 		private void syncChain() {
@@ -661,7 +664,7 @@ public class NetworkNode {
 			int maxHeight = -1;
 			int peerHeight;
 			
-			System.out.println("own height: " + ownHeight);
+			System.out.println(LocalDateTime.now() + " Own height: " + ownHeight);
 			
 			// Check chain height of peers			
 			for (int i = 0; i < peers.size(); i++) {
@@ -675,13 +678,13 @@ public class NetworkNode {
 				}
 			}
 			
-			System.out.println("max height: " + maxHeight);
+			System.out.println(LocalDateTime.now() + " Max height: " + maxHeight);
 			
 			// Start sync with longest chain
 			String msgType, message;
 			if (maxHeight > ownHeight) {
 				
-				System.out.println("Syncing with " + syncToPeer.hostname() + " " + syncToPeer.port());
+				System.out.println(LocalDateTime.now() + " Syncing with " + syncToPeer.hostname() + " " + syncToPeer.port());
 				
 				// Reset values
 				maxConsensusHeight = -1;
@@ -699,7 +702,7 @@ public class NetworkNode {
 				while (maxConsensusHeight == -1) System.out.println("Waiting...");/* Wait to determine number of blocks */
 				numberOfBlocks = maxHeight - maxConsensusHeight;
 				
-				System.out.println("height difference: " + numberOfBlocks);
+				System.out.println("Height difference: " + numberOfBlocks);
 				
 				// Request blocks
 				msgType = "3";
@@ -711,24 +714,23 @@ public class NetworkNode {
 				
 				syncToPeer.writer().println(msgType + msgSeparator + message);
 				
-				System.out.println(msgType + msgSeparator + message);
+				System.out.println(LocalDateTime.now() + " Sent: " + msgType + msgSeparator + message);
 				
-				while (syncToPeer.storedBlocks().size() < numberOfBlocks) System.out.println("size of stored blocks: " + syncToPeer.storedBlocks().size());/* Wait to receive all requested blocks */
-				
+				while (syncToPeer.storedBlocks().size() < numberOfBlocks) System.out.println("Size of stored blocks: " + syncToPeer.storedBlocks().size() + " of maxConsensusHeight " + maxConsensusHeight);
 				
 				// Remove blocks
 				Node blockNode;
 				for (int height = start; height <= ownHeight; height++) {
 					blockNode = blockExplorer.getBlockNodeByHeight(String.valueOf(height));
 					blockExplorer.removeBlockNode(blockNode);
-					System.out.println("Removed block: " + height);
+					System.out.println(LocalDateTime.now() + " Removed block: " + height);
 				}
 				
 				// Add new blocks
 				ArrayList<Block> storedBlocks = syncToPeer.storedBlocks();
 				for (int i = 0; i < storedBlocks.size(); i++) {
 					blockExplorer.addNewBlock(storedBlocks.get(i));
-					System.out.println("Add block: " + i + " of " + storedBlocks.size());
+					System.out.println(LocalDateTime.now() + " Added block: " + i + " of " + storedBlocks.size());
 				}
 				
 				// Update blockchain file
@@ -763,8 +765,15 @@ public class NetworkNode {
 			String height;
 			
 			while (true) {
-				if (this.isInterrupted()) System.out.println("Pong is interrupted");
-				height = String.valueOf(blockExplorer.getBlockchainHeight());
+				
+				if (this.isInterrupted()) System.out.println(LocalDateTime.now() + " Pong is interrupted");
+				
+				try {
+					height = String.valueOf(blockExplorer.getBlockchainHeight());
+				} catch (NullPointerException e) {
+					height = "-1";
+				}
+				
 				for (int i = 0; i < toPeers.size(); i++) toPeers.get(i).println(msgType + msgSeparator + height); 
 				
 				try {
@@ -776,7 +785,6 @@ public class NetworkNode {
 		}
 	}
  	
-	
 	/* -----------------------------------------------------------------
 	 * 							Miner
 	 * 							& associated methods
@@ -796,7 +804,7 @@ public class NetworkNode {
 		public void run() {
 			System.out.println(LocalDateTime.now() + " Miner thread started");
 			while (true) {
-				if (this.isInterrupted()) System.out.println("Miner is interrupted");
+				if (this.isInterrupted()) System.out.println(LocalDateTime.now() + " Miner is interrupted");
 				mine();
 			}
 		}

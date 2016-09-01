@@ -352,7 +352,7 @@ public class Transaction {
 		return str.toString();
 	}
 	
-	@SuppressWarnings("serial") // TODO Serialize
+	@SuppressWarnings("serial")
 	public class TransactionException extends Exception {
 		
 		public TransactionException() {
