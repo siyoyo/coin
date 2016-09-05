@@ -8,6 +8,7 @@ import org.junit.Test;
 import org.w3c.dom.Node;
 import obj.TransactionReference;
 import util.BlockExplorer;
+import util.Filename;
 
 /**
  * <b>References</b>
@@ -18,13 +19,17 @@ import util.BlockExplorer;
  */
 public class BlockExplorerTest {
 
-	private String file = "dat/blockchain.xml";
+	private String directory = "dat/";
+	private String blockchain = "blockchain";
+	private String extension = ".xml";
+	private Filename filename;
 	private BlockExplorer explorer;
 	private TransactionReference reference;
 	
 	@Before
 	public void initialise() {
-		explorer = new BlockExplorer(file);
+		filename = new Filename(directory, blockchain, extension);
+		explorer = new BlockExplorer(filename);
 		reference = new TransactionReference("00beca72451ca0eb365c622f8a35997eb56773c9b05ad91a9ccf24ecec33e384", "1", "1");
 	}
 	

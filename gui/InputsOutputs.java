@@ -34,26 +34,29 @@ import obj.Transaction.TransactionException;
 import obj.TransactionReference;
 import util.BlockExplorer;
 import util.BlockExplorer.BlockExplorerException;
+import util.Filename;
 import util.UTXOExplorer;
 import util.WalletExplorer;
 
 @SuppressWarnings("serial")
 public class InputsOutputs extends JFrame {
 	
-	public final static String BLOCKCHAIN = "dat/blockchain";
-	public final static String UTXO = "dat/utxo";
-	public final static String WALLET = "dat/wallet";
-	public final static String EXT = ".xml";
-	
 	private static InputsOutputs instance = null;
 	private Transaction transaction;
-	private String hostname;
-	private int port;
 	
+	// Files & explorers
+	public final static String DIR = "dat/";
+	public final static String BLOCKCHAIN = "blockchain";
+	public final static String UTXO = "utxolist";
+	public final static String WALLET = "wallet";
+	public final static String EXT = ".xml";
 	private BlockExplorer blockExplorer;
 	private UTXOExplorer utxoExplorer;
 	private WalletExplorer walletExplorer;
 	
+	// Messaging
+	private String hostname;
+	private int port;
 	private String msgType = "6";
 	private String msgSeparator = "MSG";
 	
@@ -90,15 +93,19 @@ public class InputsOutputs extends JFrame {
 	
 	
 	public static InputsOutputs getInstance(Transaction transaction, String hostname, int port) {
+		
 		if (instance == null) {
+			
 			instance = new InputsOutputs();
 			instance.transaction = transaction;
 			instance.hostname = hostname;
 			instance.port = port;
-			instance.initialiseExplorers(
-					BLOCKCHAIN + "_" + hostname + "_" + port + EXT, 
-					UTXO + "_" + hostname + "_" + port + EXT, 
-					WALLET + "_" + hostname + "_" + port + EXT);
+			
+			Filename blockchainFile = new Filename(DIR, BLOCKCHAIN, EXT, instance.hostname, String.valueOf(instance.port));
+			Filename utxoFile = new Filename(DIR, UTXO, EXT, instance.hostname, String.valueOf(instance.port));
+			Filename walletFile = new Filename(DIR, WALLET, EXT, instance.hostname, String.valueOf(instance.port));
+			
+			instance.initialiseExplorers(blockchainFile, utxoFile, walletFile);
 		}
 		return instance;
 	}
@@ -314,12 +321,13 @@ public class InputsOutputs extends JFrame {
 	}
 	
 	private void calculateFee() {
+		
 		String fee = "Fee not calculated";
-		try {
-			fee = "Fee is " + String.valueOf(transaction.calculateTransactionFee(blockExplorer) + " discoCoins");
-		} catch (TransactionException e) {
-			fee = e.getMessage();
-		}
+		int txFee = transaction.calculateTransactionFee(blockExplorer);
+		
+		if (txFee < 0) fee = ("Negative transaction fee");
+		else fee = "Fee is " + String.valueOf(txFee) + " discoCoins";
+		
 		lFee.setText(fee);
 	}
 	
@@ -336,19 +344,27 @@ public class InputsOutputs extends JFrame {
 			String message = transaction.toString();
 			writer.println(msgType + msgSeparator + message);
 			System.out.println(LocalDateTime.now() + " Sent: " + msgType + msgSeparator + message);
-			String response;
 			
-			while ((response = reader.readLine()) != null) {
-				switch (response) {
-					case "OK": {
-						lConfirmation.setText("Transaction sent");
-						break;
-					}
-					case "FAIL": {
-						lConfirmation.setText("Transmission failed.  Re-transmitting...");
-						writer.println(msgType + msgSeparator + message);
-						break;
-					}
+			switch (reader.readLine()) {
+				case "OK": {
+					
+					lConfirmation.setText("Transaction sent");
+					
+					// Create a new transaction and clear tables and fee
+					// TODO Migrate to "New Transaction" button
+					transaction = new Transaction();
+					refreshInputs();
+					refreshOutputs();
+					lFee.setText("");
+					
+					socket.close();
+					
+					break;
+				}
+				case "FAIL": {
+					lConfirmation.setText("Transmission failed.  Re-transmitting...");
+					writer.println(msgType + msgSeparator + message);
+					break;
 				}
 			}
 			
@@ -358,10 +374,12 @@ public class InputsOutputs extends JFrame {
 		} catch (IOException e) {
 			JOptionPane.showMessageDialog(small, e);
 			e.printStackTrace();
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 	
-	private void initialiseExplorers(String blockchainFilename, String utxoFilename, String walletFilename) {
+	private void initialiseExplorers(Filename blockchainFilename, Filename utxoFilename, Filename walletFilename) {
 		blockExplorer = new BlockExplorer(blockchainFilename);
 		utxoExplorer = new UTXOExplorer(utxoFilename);
 		walletExplorer = new WalletExplorer(walletFilename);

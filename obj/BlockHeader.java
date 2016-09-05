@@ -36,7 +36,7 @@ public class BlockHeader {
 		
 		while (result.compareTo(this.difficulty) > 0) result = tryNonce(++nonce);
 		
-		System.out.println(LocalDateTime.now() + " " + nonce + " " + result);
+		System.out.println(LocalDateTime.now() + " Found nonce " + nonce + " for " + result);
 		return result;
 	}
 	

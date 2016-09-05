@@ -9,6 +9,7 @@ import java.awt.Image;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.net.URL;
 
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
@@ -54,7 +55,8 @@ public class TransactionalNode extends JFrame {
 		this.getContentPane().setBackground(Color.WHITE);
 		
 		// lDisco
-		ImageIcon original = new ImageIcon("/Users/yinyee/Documents/workspace/Cryptocurrency/src/gui/logo.jpg");
+		URL url = TransactionalNode.class.getResource("logo.jpg"); 
+		ImageIcon original = new ImageIcon(url);
 		Image unscaled = original.getImage();
 		Image scaled = unscaled.getScaledInstance(400, 300, java.awt.Image.SCALE_SMOOTH);
 		ImageIcon logo = new ImageIcon(scaled);

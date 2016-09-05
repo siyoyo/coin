@@ -3,9 +3,9 @@ package util;
 public class BaseConverter {
 	
 	/**
-	 * Converts a byte array in base 10 to base 16.
-	 * @param bytesDecimal Byte array in base 10
-	 * @return Byte array in base 16
+	 * Converts a base-10 byte array to a base-16 string
+	 * @param bytesDecimal byte array in base 10
+	 * @return string in base 16
 	 */
 	public static String bytesDecToHex(byte[] bytesInDecimal) {
 		
@@ -22,6 +22,11 @@ public class BaseConverter {
 		return str.toString();
 	}
 	
+	/**
+	 * Converts a base-16 string to a base-10 byte array 
+	 * @param stringInHex string in base 16
+	 * @return byte array in base 10
+	 */
 	public static byte[] stringHexToDec(String stringInHex) {
 		
 		int size = 0;

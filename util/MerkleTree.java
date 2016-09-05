@@ -1,5 +1,6 @@
 package util;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import obj.Transaction;
 
@@ -89,6 +90,8 @@ public class MerkleTree {
 		// Add the last real transaction leaf to the tree until there are enough total leaves 
 		for (int leaf = numberOfTransactions; leaf < numberOfLeaves; leaf++) hashes.add(hash);
 		while (hashes.size() > 1) hashes = fold(sha256, hashes);
+		
+		System.out.println(LocalDateTime.now() + " Merkle tree built with " + transactions.size() + " transactions");
 		
 		return hashes.get(0);
 	}

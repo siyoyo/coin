@@ -10,6 +10,7 @@ import java.security.SignatureException;
 import java.security.interfaces.RSAPrivateKey;
 
 import util.BaseConverter;
+import util.Filename;
 import util.WalletExplorer;
 
 public class WalletRunTest {
@@ -23,7 +24,14 @@ public class WalletRunTest {
 			
 			KeyPair keyPair = generator.generateKeyPair();
 			
-			WalletExplorer wallet = new WalletExplorer("dat/wallet.xml");
+			String directory = "dat/";
+			String filename = "wallet";
+			String hostname = "0.0.0.0";
+			String port = "5003";
+			String extension = ".xml";
+			Filename walletFile = new Filename(directory, filename, extension, hostname, port);
+			
+			WalletExplorer wallet = new WalletExplorer(walletFile);
 			wallet.save(keyPair, "50");
 			
 			byte[] encoded = keyPair.getPublic().getEncoded();

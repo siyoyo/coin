@@ -5,6 +5,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 
 import obj.Input.InputException;
@@ -45,8 +46,8 @@ public class Transaction {
 		return signatures;
 	}
 	
-	public int transactionFee() {
-		return transactionFee;
+	public int transactionFee(BlockExplorer blockExplorer) {
+		return calculateTransactionFee(blockExplorer);
 	}
 	
 	public String txID() {
@@ -100,8 +101,6 @@ public class Transaction {
 	 */
 	public void removeOutput(String outputAddress) {
 		
-		System.out.println("number of outputs (before): " + outputs.size());
-		
 		Output output;	
 		for (int i = 0; i < outputs.size(); i++) {
 			
@@ -112,8 +111,6 @@ public class Transaction {
 				break;
 			}
 		}
-		
-		System.out.println("number of outputs (after): " + outputs.size());
 	}
 	
 	/**
@@ -183,7 +180,7 @@ public class Transaction {
 	 * Calculates the transaction fee.
 	 * @param blockExplorer block explorer
 	 */
-	public int calculateTransactionFee(BlockExplorer blockExplorer) throws TransactionException {
+	public int calculateTransactionFee(BlockExplorer blockExplorer) {
 		
 		TransactionReference reference;
 		Output output;
@@ -200,9 +197,7 @@ public class Transaction {
 		}
 		
 		transactionFee = sumInputs - sumOutputs;
-		
-		if (transactionFee < 0) throw new TransactionException("Negative transaction fee");
-		else return transactionFee;
+		return transactionFee;
 	}
 
 	/**
@@ -224,39 +219,42 @@ public class Transaction {
 		// Calculate transaction fee
 		transactionFee = calculateTransactionFee(blockExplorer);
 		
-		// Set output ID
-		for (int i = 0; i < outputs.size(); i++) outputs.get(i).setOutputID(i + 1);
-		byte[] outputsInBytes = getOutputsInBytes();
-		
-		/* Array of signatures is one larger than the number of inputs
-		 * so that the signature index is the same as the input index.
-		 * Index 0 of the signature array is null.
-		 */ 
-		initialiseSignatures(inputs.size() + 1);
-		signatures[0] = null;
-		
-		Input input;
-		boolean validUTXO = false;
-		
-		for (int i = 0; i < inputs.size(); i++) {
-			input = inputs.get(i);
+		if (transactionFee < 0) throw new TransactionException("Sum of outputs exceed sum of inputs");
+		else {
+			// Set output ID
+			for (int i = 0; i < outputs.size(); i++) outputs.get(i).setOutputID(i + 1);
+			byte[] outputsInBytes = getOutputsInBytes();
 			
-			// Check against UTXO list
-			try {
-				validUTXO = utxoExplorer.valid(input);
-			} catch (UTXOException e) {
-				e.printStackTrace();
-			}
-			 
-			if (validUTXO) {
-				// Set input ID
-				input.setInputID(i + 1);
+			/* Array of signatures is one larger than the number of inputs
+			 * so that the signature index is the same as the input index.
+			 * Index 0 of the signature array is null.
+			 */ 
+			initialiseSignatures(inputs.size() + 1);
+			signatures[0] = null;
+			
+			Input input;
+			boolean validUTXO = false;
+			
+			for (int i = 0; i < inputs.size(); i++) {
+				input = inputs.get(i);
 				
-				// Sign outputs
+				// Check against UTXO list
 				try {
-					signatures[i + 1] = input.sign(outputsInBytes);
-				} catch (InputException e) {
+					validUTXO = utxoExplorer.valid(input);
+				} catch (UTXOException e) {
 					e.printStackTrace();
+				}
+				 
+				if (validUTXO) {
+					// Set input ID
+					input.setInputID(i + 1);
+					
+					// Sign outputs
+					try {
+						signatures[i + 1] = input.sign(outputsInBytes);
+					} catch (InputException e) {
+						e.printStackTrace();
+					}
 				}
 			}
 		}
@@ -273,7 +271,7 @@ public class Transaction {
 	public boolean validate(BlockExplorer blockExplorer, UTXOExplorer utxoExplorer) throws TransactionException {
 		
 		if (inputs.size() == 0) {
-			System.out.println("No inputs to this transaction");
+			System.out.println(LocalDateTime.now() + " No inputs to this transaction");
 			return true;
 		}
 		

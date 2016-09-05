@@ -12,12 +12,17 @@ import obj.Output;
 import obj.Transaction;
 import obj.TransactionReference;
 
+/**
+ * Utility that can provide information about, or modify, the UTXO list file. <p>
+ * TODO Remove empty lines in file output by removing empty text nodes safely 
+ * during the removeChild operation on line 77
+ */
 public class UTXOExplorer {
 	
-	private String filename;
+	private Filename filename;
 	private Document doc;
 	
-	public UTXOExplorer(String filename) {
+	public UTXOExplorer(Filename filename) {
 		this.filename = filename;
 		doc = XMLio.parse(filename);
 		doc.getDocumentElement().normalize();
@@ -70,7 +75,7 @@ public class UTXOExplorer {
 				input = inputs.get(j);
 				reference = input.reference();
 				utxoNode = getUTXONode(reference);
-				doc.removeChild(utxoNode);
+				if (utxoNode != null) doc.getDocumentElement().removeChild(utxoNode);
 			}
 		
 			// Create new UTXOs from outputs
@@ -104,7 +109,8 @@ public class UTXOExplorer {
 		
 		// Clear all UTXO entries
 		NodeList utxoNodes = doc.getElementsByTagName("utxo");
-		for (int i = 0; i < utxoNodes.getLength(); i++) doc.getDocumentElement().removeChild(utxoNodes.item(i));
+		int numberOfNodes = utxoNodes.getLength();
+		for (int i = 0; i < numberOfNodes; i++) doc.getDocumentElement().removeChild(utxoNodes.item(0));
 		
 		// Rebuild UTXO entries
 		Block block;
@@ -115,6 +121,7 @@ public class UTXOExplorer {
 		}
 		
 		// Write to file
+		doc.getDocumentElement().normalize();
 		updateUTXOFile();
 	}
 	
@@ -122,7 +129,7 @@ public class UTXOExplorer {
 	 * Writes the current state of the document object to file.
 	 */
 	public void updateUTXOFile() {
-		XMLio.write(filename, doc, doc.getDocumentElement());
+		XMLio.write(filename.fullname(), doc, doc.getDocumentElement());
 	}
 	
 	@SuppressWarnings("serial")

@@ -1,14 +1,24 @@
 package test;
 
 import p2p.NetworkNode;
+import util.Filename;
 
 public class GenesisBlock {
 	
 	public static void main (String[] args) {
 		
-		// previousPoW = b1769976a749b969f3dd57ac31b302805a84665848600e57c756b1fad44a12d7
+		// previousPoW = afd18fcd591cb7ae4e984fb91f94363293f0e82b611512b77f51218f26f367ec
 		NetworkNode node = new NetworkNode();
-		node.initialiseExplorers("dat/blockchain.xml", "dat/utxo.xml", "dat/wallet.xml");
+		
+		String directory = "dat/";
+		String extension = ".xml";
+		
+		Filename blockchainFile = new Filename(directory, "blockchain", extension);
+		Filename utxoFile = new Filename(directory, "utxolist", extension);
+		Filename walletFile = new Filename(directory, "wallet", extension);
+		
+		node.initialiseExplorers(blockchainFile, utxoFile, walletFile);
+		
 		node.mine();
 	}
 }

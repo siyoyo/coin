@@ -113,7 +113,8 @@ public class Block {
 		str.append(numberOfTransactions);
 		str.append("NUM");
 		
-		for (int i = 0; i < numberOfTransactions; i++) str.append(transactions.get(i).toString());
+		for (int i = 0; i < numberOfTransactions; i++)
+			str.append(transactions.get(i).toString());
 		
 		return str.toString();
 	}

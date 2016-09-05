@@ -29,9 +29,11 @@ import obj.TransactionReference;
 import obj.Transaction.TransactionException;
 import util.BaseConverter;
 import util.BlockExplorer;
+import util.Filename;
 import util.MerkleTree;
 import util.MerkleTree.MerkleTreeException;
 import util.RSA512;
+import util.SHA256;
 import util.UTXOExplorer;
 import util.WalletExplorer;
 
@@ -43,17 +45,21 @@ import util.WalletExplorer;
  * <li><a href="http://stackoverflow.com/questions/363681/generating-random-integers-in-a-specific-range">
  * Generating random integers in a specific range</a></li>
  * </ul>
+ * TODO Implement Logger.  Have a non-verbose logging option.  Save logs to file. <p>
+ * TODO Algorithm for flagging a transaction that is in the memory pool as safe to be discarded. <p>
+ * TODO Algorithm for adding a newly received transaction to a Merkle tree of a block that is being mined. <p>
  */
 public class NetworkNode {
 	
-	public final static String BLOCKCHAIN = "dat/blockchain";
-	public final static String UTXO = "dat/utxo";
-	public final static String WALLET = "dat/wallet";
-	public final static String PEERS = "dat/peers.xml";
+	// File information
+	public final static String DIR = "dat/";
+	public final static String BLOCKCHAIN = "blockchain";
+	public final static String UTXO = "utxolist";
+	public final static String WALLET = "wallet";
 	public final static String EXT = ".xml";
 	
 	public final static int REWARD = 50;
-	public static String difficulty = "000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+	public String difficulty = "0000000fffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 	
 	private String hostname;
 	private int port;
@@ -65,7 +71,7 @@ public class NetworkNode {
 	private String blockSeparator = "BLK";
 	private String separator = " ";
 	
-	private BlockExplorer blockExplorer;
+	private BlockExplorer blockExplorer; 
 	private UTXOExplorer utxoExplorer;
 	private WalletExplorer walletExplorer;
 	
@@ -131,43 +137,17 @@ public class NetworkNode {
 		socketListener.start();
 		
 		// Initialize explorers
-		node.initialiseExplorers(
-				BLOCKCHAIN + "_" + node.hostname + "_" + node.port + EXT,
-				UTXO + "_" + node.hostname + "_" + node.port + EXT,
-				WALLET + "_" + node.hostname + "_" + node.port + EXT);
+		String myHostname = node.hostname;
+		String myPort = String.valueOf(node.port);
+		Filename blockchainFile = new Filename(DIR, BLOCKCHAIN, EXT, myHostname, myPort);
+		Filename utxoFile = new Filename(DIR, UTXO, EXT, myHostname, myPort);
+		Filename walletFile = new Filename(DIR, WALLET, EXT, myHostname, myPort);
+		
+		node.initialiseExplorers(blockchainFile, utxoFile, walletFile);
+		node.utxoExplorer.rebuildUTXOList(node.blockExplorer);
 		
 		// Connect to peers
-		Scanner robot = new Scanner(System.in);
-		String response, peerHostname;
-		int peerPort;
-		Socket socket;
-		
-		System.out.print("Connect to peer? (Y/N): ");
-		response = robot.nextLine();
-		
-		while (response.compareTo("Y") == 0 || response.compareTo("y") == 0) {
-			
-			System.out.print("Hostname: ");
-			peerHostname = robot.nextLine();
-			
-			System.out.print("Port: ");
-			peerPort = Integer.valueOf(robot.nextLine());
-			
-			try {
-				socket = new Socket(peerHostname, peerPort);
-				node.connect(socket);
-				System.out.println(LocalDateTime.now() + " Connected to " + peerHostname + " " + peerPort);
-			} catch (UnknownHostException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			
-			System.out.print("Connect to peer? (Y/N): ");
-			response = robot.nextLine();
-		}
-		
-		robot.close();
+		node.findPeers();
 		
 		// Start listening to peers
 		BlockListener listener = node.new BlockListener();
@@ -193,10 +173,49 @@ public class NetworkNode {
 	 * @param blockchainFilename blockchain filename
 	 * @param utxoFilename UTXO filename
 	 */
-	public void initialiseExplorers(String blockchainFilename, String utxoFilename, String walletFilename) {
+	public void initialiseExplorers(Filename blockchainFilename, Filename utxoFilename, Filename walletFilename) {
 		blockExplorer = new BlockExplorer(blockchainFilename);
 		utxoExplorer = new UTXOExplorer(utxoFilename);
 		walletExplorer = new WalletExplorer(walletFilename);
+	}
+	
+	/*
+	 * Prompts the user for the hostnames and port numbers of the peers
+	 * it wishes to connect to
+	 * TODO Re-factor so that it can handle input errors
+	 * TODO Figure out when it is safe to release the Scanner resources
+	 */
+	private void findPeers() {
+		
+		String response, peerHostname;
+		int peerPort;
+		
+		Scanner robot = new Scanner(System.in);
+		System.out.print("Connect to peer? (Y/N): ");
+		response = robot.nextLine();
+		
+		while (response.compareTo("Y") == 0 || response.compareTo("y") == 0) {
+			
+			System.out.print("Hostname: ");
+			peerHostname = robot.nextLine();
+			
+			System.out.print("Port: ");
+			peerPort = Integer.valueOf(robot.nextLine());
+			
+			try {	
+				Socket socket = new Socket(peerHostname, peerPort); 
+				connect(socket);
+				System.out.println(LocalDateTime.now() + " Connected to " + peerHostname + " " + peerPort);
+				
+				System.out.print("Connect to peer? (Y/N): ");
+				response = robot.nextLine();
+				
+			} catch (UnknownHostException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 	
 	/**
@@ -299,9 +318,12 @@ public class NetworkNode {
 						reader = peer.reader();
 						try {
 							message = reader.readLine();
-						} catch (IOException e) {
+						} catch (Exception e) {
+							System.out.println(LocalDateTime.now() + " Removed " + peer.hostname()+ " " + peer.port());
+							peers.remove(i);
+							toPeers.remove(i);
 							e.printStackTrace();
-						} 
+						}
 					}
 					
 					if (message != null) {
@@ -319,7 +341,6 @@ public class NetworkNode {
 							}
 							
 							case "1": /*Check hash by height*/ {
-								
 								s = msgBody.split(separator);
 								height = s[0];
 								pow = s[1];
@@ -330,7 +351,7 @@ public class NetworkNode {
 								if (pow.compareTo(blockExplorer.getPoWByHeight(height)) == 0) response += "true";
 								else response += "false";
 								peer.writer().println(responseMsgType + msgSeparator + response);
-								System.out.println(responseMsgType + msgSeparator + response);
+								System.out.println(LocalDateTime.now() + " Sent: " + responseMsgType + msgSeparator + response);
 								break;
 							}
 							
@@ -354,7 +375,7 @@ public class NetworkNode {
 									String requestHeight = String.valueOf(iHeight - 1);
 									response = requestHeight + separator + blockExplorer.getPoWByHeight(requestHeight);
 									peer.writer().println(responseMsgType + msgSeparator + response);
-									System.out.println(responseMsgType + msgSeparator + response);
+									System.out.println(LocalDateTime.now() + " Sent: " + responseMsgType + msgSeparator + response);
 									break;
 								}
 								
@@ -368,14 +389,15 @@ public class NetworkNode {
 								
 								s = msgBody.split(separator);
 								
-								for (int j = 0; j < s.length; j++) 
+								for (int j = 0; j < s.length; j++)
 									response += blockExplorer.getBlock(s[j]).toString() + blockSeparator;
 									
 								peer.writer().println(responseMsgType + msgSeparator + response);
-								System.out.println(responseMsgType + msgSeparator + response);
+								System.out.println(LocalDateTime.now() + " Sent: " + responseMsgType + msgSeparator + response);
 								break;
 							}
 							
+							// TODO Consider breaking up into a series of messages instead
 							case "4": /*Block by height response */ {
 								
 								s = msgBody.split(blockSeparator);
@@ -383,7 +405,7 @@ public class NetworkNode {
 								Block block;
 								for (int j = 0; j < s.length; j++) {
 									try {
-										block = readBlock(s[j], peer.hostname() + " port " + peer.port());
+										block = readBlock(s[j]);
 										peer.storedBlocks().add(block);
 									} catch (Exception e) {
 										e.printStackTrace();
@@ -394,17 +416,22 @@ public class NetworkNode {
 							
 							case "5": /*Block broadcast*/ {
 								
+								System.out.println(LocalDateTime.now() + " Receiving block from " + peer.hostname() + " port " + peer.port());
+								
 								Block block = null;
+								boolean valid = false;
 								
 								try {
-									block = readBlock(msgBody, peer.hostname() + " port " + peer.port());
+									block = readBlock(msgBody);
+									valid = block.validate(blockExplorer, utxoExplorer);
 								} catch (Exception e) {
 									e.printStackTrace();
 								}
 								
-								if (isNewBlock(block)) {
+								if (valid & isNewBlock(block)) {
 									blockExplorer.addNewBlock(block);
 									blockExplorer.updateBlockchainFile();
+									utxoExplorer.rebuildUTXOList(blockExplorer);
 									broadcast("5", msgBody);
 								}
 								
@@ -413,23 +440,29 @@ public class NetworkNode {
 							
 							case "6": /*Transaction broadcast*/ {
 								
-								System.out.println("Receiving transaction from " + peer.hostname() + " port " + peer.port());
+								System.out.println(LocalDateTime.now() + " Receiving transaction from " + peer.hostname() + " port " + peer.port());
+								
+								String[] parts = msgBody.split("TX");
+								
+								Transaction transaction = null;
+								boolean valid = false;
 								
 								try {
-									
-									Transaction transaction = readTransaction(msgBody);
-									
-									if (transaction.validate(blockExplorer, utxoExplorer)) {
-										
-										mempool.add(transaction);
-										peer.writer().println("OK");
-										broadcast("6", msgBody);
-										
-									} else peer.writer().println("FAIL");
-									
+									transaction = readTransaction(parts[0]);
+									valid = transaction.validate(blockExplorer, utxoExplorer);
+								} catch (TransactionException txe) {
+									/*Input not found in UTXO list because blocks have not been added yet*/;
 								} catch (Exception e) {
 									e.printStackTrace();
 								}
+								
+								if (valid & isNewTransaction(transaction)) {
+									mempool.add(transaction);
+									System.out.println(LocalDateTime.now() + " Transaction validated and added to the memory pool.  Number of transactions in memory pool: " + mempool.size());
+									peer.writer().println("OK"); // TODO
+									broadcast("6", msgBody);
+								} else peer.writer().println("FAIL");
+								
 								break;
 							}
 						}
@@ -443,9 +476,7 @@ public class NetworkNode {
 	 * Re-constructs a block from the received block broadcast.  Returns a block
 	 * if the re-constructed block is valid; null otherwise.
 	 */
-	private Block readBlock(String string, String peer) throws MalformedTransactionException, BlockHeaderException, MerkleTreeException, TransactionException {
-		
-		System.out.println(LocalDateTime.now() + " Receiving block from " + peer);
+	private Block readBlock(String string) throws MalformedTransactionException, BlockHeaderException, MerkleTreeException, TransactionException {
 		
 		String[] sections = string.split("HEAD");
 		String header = sections[0];
@@ -469,7 +500,7 @@ public class NetworkNode {
 		String[] numTx = _header.split("NUM");
 		int numberOfTransactions = Integer.valueOf(numTx[0]);
 		String _numTx = numTx[1];
-		System.out.println("Block header read");
+		
 		// Transactions
 		String[] txs = _numTx.split("TX");
 		if (txs.length != numberOfTransactions) throw new MalformedTransactionException("Mismatched number of transactions");
@@ -477,17 +508,14 @@ public class NetworkNode {
 		ArrayList<Transaction> transactions = new ArrayList<Transaction>();
 		Transaction transaction;
 		for (int i = 0; i < numberOfTransactions; i++) {
+			System.out.println(LocalDateTime.now() + " Reading transaction " + (i + 1) + " of " + numberOfTransactions + " ...");
 			transaction = readTransaction(txs[i]);
-			System.out.println("Read transaction " + i + " of " + numberOfTransactions);
 			transactions.add(transaction);
 		}
 		
 		Block reconstructedBlock = new Block(blockHeader, pow, transactions);
 		reconstructedBlock.setHeight(height);
 		System.out.println(LocalDateTime.now() + " Block " + reconstructedBlock.pow() + " received and reconstructed: "+ (reconstructedBlock.toString().compareTo(string) == 0));
-		
-		boolean validBlock = reconstructedBlock.validate(blockExplorer, utxoExplorer);
-		System.out.println(LocalDateTime.now() + " Block " + reconstructedBlock.pow() + " is valid: " + validBlock);
 		
 		return reconstructedBlock;
 	}
@@ -533,7 +561,7 @@ public class NetworkNode {
 		
 		parts = tx.split("END");
 		if (numberOfInputs > 0) {
-			if (parts.length != 4) throw new MalformedTransactionException();
+			if (parts.length != 3) throw new MalformedTransactionException();
 			else {	
 				inputs = parts[0];
 				outputs = parts[1];
@@ -571,6 +599,7 @@ public class NetworkNode {
 					for (int k = 0; k < sigs.length; k++) 
 						transaction.signatures()[k + 1] = BaseConverter.stringHexToDec(sigs[k]);
 				}
+				
 			}
 		} else /* numberOfInputs = 0 */ {
 			inputs = parts[0];
@@ -664,7 +693,7 @@ public class NetworkNode {
 			int maxHeight = -1;
 			int peerHeight;
 			
-			System.out.println(LocalDateTime.now() + " Own height: " + ownHeight);
+			System.out.println(LocalDateTime.now() + " My chain height: " + ownHeight);
 			
 			// Check chain height of peers			
 			for (int i = 0; i < peers.size(); i++) {
@@ -678,7 +707,7 @@ public class NetworkNode {
 				}
 			}
 			
-			System.out.println(LocalDateTime.now() + " Max height: " + maxHeight);
+			System.out.println(LocalDateTime.now() + " Max chain height of peers: " + maxHeight);
 			
 			// Start sync with longest chain
 			String msgType, message;
@@ -693,16 +722,24 @@ public class NetworkNode {
 				// Initialize storedBlocks
 				syncToPeer.initialiseStoredBlocks();
 				
-				// Start consensus process
-				msgType = "1"; /* Check hash at height */
-				message = ownHeight + separator + blockExplorer.getPoWByHeight(String.valueOf(ownHeight));
-				syncToPeer.writer().println(msgType + msgSeparator + message);
-				System.out.println(msgType + msgSeparator + message);
+				// If own height is zero, skip immediately to request blocks
+				if (ownHeight != 0) {
+					// Start consensus process
+					msgType = "1"; /* Check hash at height */
+					message = ownHeight + separator + blockExplorer.getPoWByHeight(String.valueOf(ownHeight));
+					syncToPeer.writer().println(msgType + msgSeparator + message);
+					System.out.println(LocalDateTime.now() + " Sent: " + msgType + msgSeparator + message);
+					
+					// TODO Implement semaphore locking instead of busy waiting
+					// http://stackoverflow.com/questions/8409609/java-empty-while-loop
+					while (maxConsensusHeight == -1) System.out.println("Determining height of last consensus block..."); 
+					
+
+				} else {
+					maxConsensusHeight = 0;
+				}
 				
-				while (maxConsensusHeight == -1) System.out.println("Waiting...");/* Wait to determine number of blocks */
 				numberOfBlocks = maxHeight - maxConsensusHeight;
-				
-				System.out.println("Height difference: " + numberOfBlocks);
 				
 				// Request blocks
 				msgType = "3";
@@ -716,21 +753,60 @@ public class NetworkNode {
 				
 				System.out.println(LocalDateTime.now() + " Sent: " + msgType + msgSeparator + message);
 				
-				while (syncToPeer.storedBlocks().size() < numberOfBlocks) System.out.println("Size of stored blocks: " + syncToPeer.storedBlocks().size() + " of maxConsensusHeight " + maxConsensusHeight);
+				// TODO Implement semaphore locking instead of busy waiting
+				// http://stackoverflow.com/questions/8409609/java-empty-while-loop
+				while (syncToPeer.storedBlocks().size() < numberOfBlocks) System.out.println("Waiting to receive requested blocks...");;
 				
-				// Remove blocks
-				Node blockNode;
-				for (int height = start; height <= ownHeight; height++) {
-					blockNode = blockExplorer.getBlockNodeByHeight(String.valueOf(height));
-					blockExplorer.removeBlockNode(blockNode);
-					System.out.println(LocalDateTime.now() + " Removed block: " + height);
+				// If own height is zero, skip immediately to adding blocks
+				if (ownHeight != 0) {
+					
+					// Remove blocks
+					Node blockNode;
+					for (int height = start; height <= ownHeight; height++) {
+						blockNode = blockExplorer.getBlockNodeByHeight(String.valueOf(height));
+						blockExplorer.removeBlockNode(blockNode);
+						System.out.println(LocalDateTime.now() + " Removed block: " + height);
+					}
+					
 				}
 				
 				// Add new blocks
 				ArrayList<Block> storedBlocks = syncToPeer.storedBlocks();
+				Block block;
+				boolean valid = false;
+				boolean isNew = false;
+				
 				for (int i = 0; i < storedBlocks.size(); i++) {
-					blockExplorer.addNewBlock(storedBlocks.get(i));
-					System.out.println(LocalDateTime.now() + " Added block: " + i + " of " + storedBlocks.size());
+					
+					block = storedBlocks.get(i);
+					
+					try {
+						
+						if (block.height().compareTo("1") == 0) {
+							valid = true;
+							isNew = true;
+						} else {
+							valid = block.validate(blockExplorer, utxoExplorer);
+							isNew = isNewBlock(block);
+						}
+						
+					} catch (BlockHeaderException e) {
+						e.printStackTrace();
+					} catch (MerkleTreeException e) {
+						e.printStackTrace();
+					} catch (TransactionException e) {
+						e.printStackTrace();
+					}
+					
+					if (valid & isNew) {
+						blockExplorer.addNewBlock(block);
+						utxoExplorer.update(block);
+						System.out.println(LocalDateTime.now() + " Added block: " + (i + 1) + " of " + storedBlocks.size());
+					} else {
+						// TODO Break current sync process, discard stored blocks, and send a fresh request for blocks
+						System.out.println(LocalDateTime.now() + " Block " + (i + 1) + " is not a valid block");
+					}
+					
 				}
 				
 				// Update blockchain file
@@ -876,12 +952,24 @@ public class NetworkNode {
 		
 		// Get Merkle root
 		String root = MerkleTree.getRoot(transactions);
+		
+		// Get previous proof-of-work
+		String previousPoW = "xxxxxxxxxxxxxxx";
+		while (previousPoW.compareTo("xxxxxxxxxxxxxxx") == 0) {
+			try {
+				previousPoW = blockExplorer.getLastPoW();
+			} catch (NullPointerException npe) {
+				findPeers();
+				consensusBuilder.syncChain();
+			}
+		}
+		
 		BlockHeader header = new BlockHeader(blockExplorer.getLastPoW(), root);
 		
 		// Hash to find proof-of-work
 		String pow = header.hash(difficulty);
 		
-		return new Block(header, pow, transactions);	
+		return new Block(header, pow, transactions);
 	}
 	
 	
@@ -906,8 +994,6 @@ public class NetworkNode {
 		
 		Transaction tx;
 		ArrayList<Input> inputs;
-		Input input;
-		String inputID;
 		
 		// Check for double-spending in same transaction or group of transactions
 		for (int i = 0; i < transactions.size(); i++) {
@@ -917,15 +1003,12 @@ public class NetworkNode {
 			inputs = tx.inputs();
 			for (int j = 0; j < inputs.size(); j++) {
 				
-				input = inputs.get(j);
-				inputID = input.inputID();
-				reference = input.reference();
-				
+				reference = inputs.get(j).reference();
 				seen = seen(references, reference);
 				
 				if (seen) {
 					transactions.remove(i);
-					System.out.println("Input " + i + "." + inputID + " is invalid and has been removed");
+					System.out.println("Double-spending detected: transaction " + i + " has been removed");
 				}
 				else references.add(reference);
 			}
@@ -974,7 +1057,7 @@ public class NetworkNode {
 	private int totalFees(ArrayList<Transaction> finalisedTransactions) {
 		int fees = 0;
 		for (int i = 0; i < finalisedTransactions.size(); i++)
-			fees += finalisedTransactions.get(i).transactionFee();
+			fees += finalisedTransactions.get(i).transactionFee(blockExplorer);
 		return fees;
 	}
 	
@@ -985,6 +1068,26 @@ public class NetworkNode {
 		String latestHeader = blockExplorer.getLastPoW();
 		if (block.header().previousPoW().compareTo(latestHeader) == 0) return true;
 		else return false;
+	}
+	
+	/*
+	 * Check if the transaction is already included in the memory pool.
+	 */
+	private boolean isNewTransaction(Transaction transaction) {
+		
+		String txAsString = transaction.toString();
+		String newHash;
+		
+		SHA256 sha256 = new SHA256();
+		if (txAsString != null) newHash = sha256.hashString(transaction.toString()); 
+		else return false;
+		
+		String hash = null;
+		for (int i = 0; i < mempool.size(); i++) {
+			hash = sha256.hashString(mempool.get(i).toString());
+			if (hash.compareTo(newHash) == 0) return false;
+		}
+		return true;
 	}
 	
 	/*

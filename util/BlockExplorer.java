@@ -28,10 +28,10 @@ import obj.TransactionReference;
  */
 public class BlockExplorer {
 	
-	private String filename;
+	private Filename filename;
 	private Document doc;
 	
-	public BlockExplorer(String filename) {
+	public BlockExplorer(Filename filename) {
 		this.filename = filename;
 		doc = XMLio.parse(filename);
 		doc.getDocumentElement().normalize();
@@ -192,16 +192,18 @@ public class BlockExplorer {
 		int numberOfTransactions = txNodes.getLength();
 		Node txIDNode;
 		
-		NodeList inputNodes, outputNodes;
-		int numberOfInputs, numberOfOutputs;
+		NodeList inputNodes, outputNodes, signatureNodes;
+		int numberOfInputs, numberOfOutputs, numberOfSignatures;
 		
 		Node inputNode, refPoWNode, refTxNode, refOutNode, inputIDNode;
 		Node outputNode, publicKeyNode, amountNode, outputIDNode;
+		Node signatureNode, signIDNode, signNode;
 		
 		Input input;
 		TransactionReference reference;
 		Output output;
 		RSAPublicKey publicKey;
+		int signID;
 		
 		// Transactions
 		for (int i = 0; i < numberOfTransactions; i++) {
@@ -261,9 +263,30 @@ public class BlockExplorer {
 				output.setOutputID(Integer.valueOf(outputIDNode.getTextContent()));
 				
 				transaction.outputs().add(output);
-				}
-			transactions.add(transaction);
 			}
+			
+			// Signatures
+			signatureNodes = transactionElement.getElementsByTagName("signature");
+			numberOfSignatures = signatureNodes.getLength();
+			
+			transaction.initialiseSignatures(numberOfSignatures + 1);
+			transaction.signatures()[0] = null;
+			
+			for (int m = 0; m < numberOfSignatures; m++) {
+				
+				signatureNode = signatureNodes.item(m);
+				
+				// Signature ID
+				signIDNode = getDescendantNode(signatureNode, "signID");
+				signID = Integer.valueOf(signIDNode.getTextContent());
+				
+				// Sign
+				signNode = getDescendantNode(signatureNode, "sign");
+				transaction.signatures()[signID] = BaseConverter.stringHexToDec(signNode.getTextContent());
+			}
+			
+			transactions.add(transaction);
+		}
 		
 		// Proof-of-work
 		Node powNode = getDescendantNode(blockElement, "pow");
@@ -334,10 +357,11 @@ public class BlockExplorer {
 		
 		// Block body
 		Node bodyNode = doc.createElement("body");
-		Node txNode, txIDNode, inputNode, outputNode, node;
+		Node txNode, txIDNode, inputNode, outputNode, node, signatureNode;
 		Input input;
 		TransactionReference reference;
 		Output output;
+		byte[] signature;
 		
 		// Transactions
 		ArrayList<Transaction> transactions = block.transactions();
@@ -417,6 +441,30 @@ public class BlockExplorer {
 				txNode.appendChild(outputNode);
 			}
 			
+			// Signatures
+			if (tx.signatures() != null) {
+				
+				byte[][] signatures = tx.signatures();
+				
+				for (int m = 1; m < signatures.length; m++) {
+					
+					signature = signatures[m];
+					signatureNode = doc.createElement("signature");
+					
+					// Signature ID
+					node = doc.createElement("signID");
+					node.setTextContent(String.valueOf(m));
+					signatureNode.appendChild(node);
+					
+					// Signature
+					node = doc.createElement("sign");
+					node.setTextContent(BaseConverter.bytesDecToHex(signature));
+					signatureNode.appendChild(node);
+					
+					txNode.appendChild(signatureNode);
+				}
+			}
+			
 			bodyNode.appendChild(txNode);
 		}
 		
@@ -428,7 +476,7 @@ public class BlockExplorer {
 	 * Writes the current state of the document object to file.
 	 */
 	public void updateBlockchainFile() {
-		XMLio.write(filename, doc, doc.getDocumentElement());
+		XMLio.write(filename.fullname(), doc, doc.getDocumentElement());
 	}
 	
 	/**
@@ -446,7 +494,8 @@ public class BlockExplorer {
 	 * @param chain2 blockchain file 2
 	 * @return longest consensus between the two chains
 	 */
-	public static int longestMatch(String chain1, String chain2) {
+	@Deprecated
+	public static int longestMatch(Filename chain1, Filename chain2) {
 		
 		Document doc1 = XMLio.parse(chain1);
 		Document doc2 = XMLio.parse(chain2);

@@ -14,14 +14,19 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+/**
+ * Utility that can provide information about, or modify, the wallet file. <p>
+ * TODO Implement function to rebuild wallet file based on UTXO list file so that latest balances are reflected,
+ * particularly after making transactions through the TransactionalNode and InputsOutputs classes
+ */
 public class WalletExplorer {
 	
 	public final static String KEY_ALGORITHM = "RSA";
 	
-	private String filename;
+	private Filename filename;
 	private Document doc;
 	
-	public WalletExplorer(String filename) {
+	public WalletExplorer(Filename filename) {
 		this.filename = filename;
 		doc = XMLio.parse(this.filename);
 		doc.getDocumentElement().normalize();
@@ -91,7 +96,7 @@ public class WalletExplorer {
 		keyNode.appendChild(amountNode);
 		
 		doc.getDocumentElement().appendChild(keyNode);
-		XMLio.write(filename, doc, doc.getDocumentElement());
+		XMLio.write(filename.fullname(), doc, doc.getDocumentElement());
 	}
 	
 	
@@ -159,7 +164,7 @@ public class WalletExplorer {
 		int updatedBalance = Integer.valueOf(balance) + amount;
 		amountNode.setTextContent(String.valueOf(updatedBalance));
 		
-		XMLio.write(filename, doc, doc.getDocumentElement());
+		XMLio.write(filename.fullname(), doc, doc.getDocumentElement());
 	}
 	
 	/* -----------------------------------------------------------------
