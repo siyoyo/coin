@@ -6,7 +6,7 @@
 */
 
 function timedRefresh() {
-	setTimeout("location.reload(true)", 10000);
+	setTimeout("location.reload(true)", 60000);
 	loadXMLDoc();
 }
 
@@ -21,7 +21,7 @@ function loadXMLDoc() {
 		ajaxObject = new ActiveXObject("Microsoft.XMLHTTP");
 	}
 
-	ajaxObject.open("GET", "blockchain.xml", false);
+	ajaxObject.open("GET", "../dat/blockchain_0.0.0.0_5003.xml", false);
 	ajaxObject.send();
 	xmlDoc = ajaxObject.responseXML;
 
