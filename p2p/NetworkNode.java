@@ -693,7 +693,7 @@ public class NetworkNode {
 			int maxHeight = -1;
 			int peerHeight;
 			
-			System.out.println(LocalDateTime.now() + " My chain height: " + ownHeight);
+			System.out.println(LocalDateTime.now() + " Own chain height: " + ownHeight);
 			
 			// Check chain height of peers			
 			for (int i = 0; i < peers.size(); i++) {
